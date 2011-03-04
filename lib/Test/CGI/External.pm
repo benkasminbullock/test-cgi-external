@@ -113,6 +113,15 @@ sub do_compression_test
     $self->{comp_test} = $switch;
 }
 
+=head2 expect_charset
+
+    $tester->expect_charset ('UTF-8');
+
+Tell the tester to test whether the header and output have the correct
+character set.
+
+=cut
+
 sub expect_charset
 {
     my ($self, $charset) = @_;
@@ -220,7 +229,7 @@ sub run_private
     # the options the user has given.
 
     my $query_string = $options->{QUERY_STRING};
-    if ($query_string) {
+    if (defined $query_string) {
         if ($verbose) {
             print "I am setting the query string to '$query_string'.\n";
         }
@@ -362,14 +371,14 @@ sub check_content_line_private
         print "I am checking to see if the output contains a valid content type line.\n";
     }
     my $content_type_ok;
-    if ($header =~ m!(Content-Type:\s*.*)!) {
+    if ($header =~ m!(Content-Type:\s*.*)!i) {
         $object->pass_test ("There is a Content-Type header");
         $content_type_line = $1;
         if ($content_type_line =~ m!^Content-Type:\p{HTTP_LWS}+
                                         \p{HTTP_TOKEN}+
                                         /
                                         \p{HTTP_TOKEN}+
-                                   !x) {
+                                   !xi) {
             $object->pass_test ("The Content-Type header is well-formed");
             if ($expected_charset) {
                 if ($content_type_line =~ /charset
@@ -482,7 +491,12 @@ sub check_compression_private
         my $discard;
         my $status = gunzip \$body => \$discard;
         if (! $status) {
-            $object->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error $GunzipError");
+            $object->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error '$GunzipError'");
+            my $failedfile = "$0.gunzip-failure.$$";
+            open my $temp, ">:bytes", $failedfile or die $!;
+            print $temp $body;
+            close $temp;
+            print "Saved failed output to $failedfile.\n";
         }
         else {
             $object->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'");
@@ -534,7 +548,7 @@ sub run
         print "My name is Michael Caine. Not a lot of people know that.\n";
 #    }
     for my $e (@{$self->{set_env}}) {
-        print "Deleting environment variable $e\n";
+#        print "Deleting environment variable $e\n";
         $ENV{$e} = undef;
     }
     $self->{set_env} = undef;
