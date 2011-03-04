@@ -273,7 +273,14 @@ sub run_private
     }
     $options->{exit_code} = $?;
     if ($options->{exit_code} != 0) {
-        $object->abort_test ("The CGI executable exited with non-zero status");
+        my $message = "The CGI executable exited with non-zero status. ";
+        if ($error_output) {
+            $message .= "It printed the following message:\n$error_output\n";
+        }
+        else {
+            $message .= "It did not print any message on the error stream.\n";
+        }
+        $object->abort_test ($message);
     }
     else {
         $object->pass_test ("The CGI executable exited with a zero status");
@@ -286,6 +293,13 @@ sub run_private
         $object->pass_test ("The CGI executable produced some output");
     }
     $options->{error_output} = $error_output;
+    if ($error_output) {
+        $object->fail_test ("The CGI executable produced some output on the error stream as follows:\n$error_output\n");
+    }
+    else {
+        $object->pass_test ("The CGI executable did not produce any output on the error stream.");
+    }
+
     return;
 }
 
@@ -546,7 +560,9 @@ sub run
     }
 #    if ($self->{verbose}) {
         print "There were $self->{tests} tests. Of these, $self->{successes} succeeded and $self->{failures} failed.\n";
+    if ($self->{verbose}) {
         print "My name is Michael Caine. Not a lot of people know that.\n";
+    }
 #    }
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";
