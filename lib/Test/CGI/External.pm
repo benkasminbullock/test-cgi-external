@@ -269,7 +269,7 @@ sub run_private
     }
     run3 ($cgi_executable, \$input, \$standard_output, \$error_output);
     if ($verbose) {
-        print "The program has now finished running.\n";
+        printf "The program has now finished running. There were %d bytes of output.\n", length ($standard_output);
     }
     $options->{exit_code} = $?;
     if ($options->{exit_code} != 0) {
@@ -467,7 +467,7 @@ sub check_headers_private
     if (! $output) {
         die "An error has occured in ", __PACKAGE__, ": the output should have been checked for emptiness but somehow it hasn't been, and so I cannot continue working. Sorry!";
     }
-    my ($header, $body) = split /\r?\n\r?\n/, $output;
+    my ($header, $body) = split /\r?\n\r?\n/, $output, 2;
     check_http_header_syntax_private ($object, $header, $verbose);
     check_content_line_private ($object, $header, $verbose);
     $object->{run_options}->{header} = $header;
@@ -489,6 +489,7 @@ sub check_compression_private
     else {
         $object->pass_test ("The header claims that the output is compressed");
         my $discard;
+        #printf "The length of the body is %d\n", length ($body);
         my $status = gunzip \$body => \$discard;
         if (! $status) {
             $object->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error '$GunzipError'");
