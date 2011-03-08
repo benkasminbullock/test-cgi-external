@@ -194,7 +194,7 @@ sub fail_test
 sub abort_test
 {
     my ($self, $test) = @_;
-    die "$test.\n";
+    die "$test. I have to stop working now.\n";
 }
 
 sub setenv_private
@@ -514,7 +514,10 @@ sub check_compression_private
             print "Saved failed output to $failedfile.\n";
         }
         else {
-            $object->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'");
+            my $uncomp_size = length $discard;
+            my $percent_comp = sprintf ("%.1f%%", (100 * length ($body)) / $uncomp_size);
+            $object->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'. The uncompressed size is $uncomp_size. The compressed output is $percent_comp of the uncompressed size.");
+            
         }
     }
     if ($verbose) {
