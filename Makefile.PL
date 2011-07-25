@@ -9,6 +9,5 @@ WriteMakefile (
         'Test::More' => 0,
         'IPC::Run3' => 0,
         'IO::Uncompress::Gunzip' => 0,
-        'autodie' => 0,
     },
 );

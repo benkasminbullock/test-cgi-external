@@ -1,0 +1,9 @@
+Test::CGI::External is a tool for running tests on a CGI program. Say
+there is a program called "example.cgi" and it is required to test
+that example.cgi produces a correct Content-Type header and does not
+print out ill-formed headers. Test::CGI::External tests whether
+example.cgi is a valid CGI program in place. Test::CGI::External does
+not access example.cgi via a web server, but as a stand-alone program.
+
+The tested CGI program can be in any language; Test::CGI::External is
+meant to test external programs.

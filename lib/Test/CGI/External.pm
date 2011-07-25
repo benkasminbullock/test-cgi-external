@@ -35,7 +35,6 @@ require Exporter;
 @EXPORT_OK = qw//;
 use warnings;
 use strict;
-use autodie;
 use Carp;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use IPC::Run3;
@@ -492,7 +491,7 @@ sub check_compression_private
             my $failedfile = "$0.gunzip-failure.$$";
             open my $temp, ">:bytes", $failedfile or die $!;
             print $temp $body;
-            close $temp;
+            close $temp or die $!;
             print "Saved failed output to $failedfile.\n";
         }
         else {
