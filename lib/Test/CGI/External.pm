@@ -16,13 +16,16 @@ my %options;
 
 $tester->run (\%options);
 
-my $options{query_string} = 'text="alcohol"';
+$options{REQUEST_METHOD} = 'GET';
+$options{QUERY_STRING} = 'text="alcohol"';
 
 $tester->run (\%options);
 
 # Test compression of output
 
 $tester->do_compression_test (1);
+
+The uncompressed output is in C<$options{body}>.
 
 =cut
 
@@ -172,11 +175,11 @@ sub check_request_method
 sub pass_test
 {
     my ($self, $test) = @_;
-    if ($self->{verbose}) {
-        print "Success: $test.\n";
-    }
     $self->{successes} += 1;
     $self->{tests} += 1;
+    if ($self->{verbose}) {
+        print "Test #$self->{tests}: Success: $test.\n";
+    }
 }
 
 # Fail a test and keep going.
@@ -184,9 +187,9 @@ sub pass_test
 sub fail_test
 {
     my ($self, $test) = @_;
-    print STDERR "Failed a test: $test.\n";
     $self->{failures} += 1;
     $self->{tests} += 1;
+    print STDERR "Test #$self->{tests}: Failure: $test.\n";
 }
 
 # Fail a test which means that we cannot keep going.
@@ -243,6 +246,16 @@ sub run_private
         print "The request method is '$request_method'.\n";
     }
     setenv_private ($object, 'REQUEST_METHOD', $request_method);
+    if ($options->{HTTP_COOKIE}) {
+        setenv_private ($object, 'HTTP_COOKIE', $options->{HTTP_COOKIE});
+    }
+    my $remote_addr = $object->{run_options}->{REMOTE_ADDR};
+    if ($remote_addr) {
+        if ($verbose) {
+            print "I am setting the remote address to '$remote_addr'.\n";
+        }
+        setenv_private ($object, 'REMOTE_ADDR', $remote_addr);
+    }
     my $input;
     if ($options->{input}) {
         $input = $options->{input};
@@ -297,7 +310,7 @@ sub run_private
         $object->fail_test ("The CGI executable produced some output on the error stream as follows:\n$error_output\n");
     }
     else {
-        $object->pass_test ("The CGI executable did not produce any output on the error stream.");
+        $object->pass_test ("The CGI executable did not produce any output on the error stream");
     }
 
     return;
@@ -313,64 +326,29 @@ sub run_private
 #      '/', '[', ']', '?', '=', '{', '}', \x32, \x09 );
 # @token_valid_chars{@tspecials} = (0) x @tspecials;
 
-sub HTTP_CTL {
-    return <<'END';
-0000 001F
-007F
-END
-}
+my $HTTP_CTL = qr/[\x{0}-\x{1F}\x{7f}]/;
 
-sub HTTP_TSPECIALS {
-    return <<'END';
-0009
-0020
-0022
-0028
-0029
-002C
-002F
-003A 003F
-005B 005D
-007B
-007D
-END
-}
+my $HTTP_TSPECIALS = qr/[\x{09}\x{20}\x{22}\x{28}\x{29}\x{2C}\x{2F}\x{3A}-\x{3F}\x{5B}-\x{5D}\x{7B}\x{7D}]/;
 
-sub HTTP_TOKEN {
-    return <<'END';
-0000 007f
--Test::CGI::External::HTTP_CTL
--Test::CGI::External::HTTP_TSPECIALS
-END
-}
+my $HTTP_TOKEN = '[\x{21}\x{23}-\x{27}\x{2a}\x{2b}\x{2d}\x{2e}\x{30}-\x{39}\x{40}-\x{5a}\x{5e}-\x{7A}\x{7c}\x{7e}]';
 
-sub HTTP_TEXT {
-    return <<'END';
-0000 00ff
--Test::CGI::External::HTTP_CTL
-END
-}
+my $HTTP_TEXT = qr/[^\x{0}-\x{1F}\x{7f}]/;
 
 # This does not include [CRLF].
 
-sub HTTP_LWS {
-    return <<'END';
-0009
-0020
-END
-}
+my $HTTP_LWS = '[\x{09}\x{20}]';
 
-my $qd_text = qr/[^"\p{HTTP_CTL}]/;
+my $qd_text = qr/[^"\x{0}-\x{1f}\x{7f}]/;
 my $quoted_string = qr/"$qd_text+"/;
-my $field_content = qr/\p{HTTP_TEXT}*|
+my $field_content = qr/(?:$HTTP_TEXT)*|
                        (?:
-                           \p{HTTP_TOKEN}|
-                           \p{HTTP_TSPECIALS}|
+                           $HTTP_TOKEN|
+                           $HTTP_TSPECIALS|
                            $quoted_string
                        )*
                       /x;
 
-my $http_token = qr/\p{HTTP_TOKEN}+/;
+my $http_token = qr/(?:$HTTP_TOKEN)+/;
 
 # Check for a valid content type line.
 
@@ -388,10 +366,10 @@ sub check_content_line_private
     if ($header =~ m!(Content-Type:\s*.*)!i) {
         $object->pass_test ("There is a Content-Type header");
         $content_type_line = $1;
-        if ($content_type_line =~ m!^Content-Type:\p{HTTP_LWS}+
-                                        \p{HTTP_TOKEN}+
+        if ($content_type_line =~ m!^Content-Type:(?:$HTTP_LWS)+
+                                        (?:$HTTP_TOKEN)+
                                         /
-                                        \p{HTTP_TOKEN}+
+                                        (?:$HTTP_TOKEN)+
                                    !xi) {
             $object->pass_test ("The Content-Type header is well-formed");
             if ($expected_charset) {
@@ -443,6 +421,8 @@ sub check_http_header_syntax_private
     my @lines = split /\r?\n/, $header;
     my $line_number = 0;
     my $bad_headers = 0;
+    my $line_re = qr/$HTTP_TOKEN+:$HTTP_LWS+/;
+#    print "Line regex is $line_re\n";
     for my $line (@lines) {
         if ($line =~ /^$/) {
             if ($line_number == 0) {
@@ -455,7 +435,7 @@ sub check_http_header_syntax_private
             last;
         }
         $line_number += 1;
-        if ($line !~ /\p{HTTP_TOKEN}:\p{HTTP_LWS}/) {
+        if ($line !~ $line_re) {
             $object->fail_test ("The header on line $line_number, '$line', appears not to be a correctly-formed HTTP header");
             $bad_headers++;
         }
@@ -464,7 +444,7 @@ sub check_http_header_syntax_private
         }
     }
     if ($verbose) {
-        print "I have finished checking the HTTP header.\n";
+        print "I have finished checking the HTTP header for consistency.\n";
     }
 }
 
@@ -483,7 +463,9 @@ sub check_headers_private
     }
     my ($header, $body) = split /\r?\n\r?\n/, $output, 2;
     check_http_header_syntax_private ($object, $header, $verbose);
-    check_content_line_private ($object, $header, $verbose);
+    if (! $object->{no_check_content}) {
+        check_content_line_private ($object, $header, $verbose);
+    }
     $object->{run_options}->{header} = $header;
     $object->{run_options}->{body} = $body;
 }
@@ -502,9 +484,9 @@ sub check_compression_private
     }
     else {
         $object->pass_test ("The header claims that the output is compressed");
-        my $discard;
+        my $uncompressed;
         #printf "The length of the body is %d\n", length ($body);
-        my $status = gunzip \$body => \$discard;
+        my $status = gunzip \$body => \$uncompressed;
         if (! $status) {
             $object->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error '$GunzipError'");
             my $failedfile = "$0.gunzip-failure.$$";
@@ -514,15 +496,26 @@ sub check_compression_private
             print "Saved failed output to $failedfile.\n";
         }
         else {
-            my $uncomp_size = length $discard;
+            my $uncomp_size = length $uncompressed;
             my $percent_comp = sprintf ("%.1f%%", (100 * length ($body)) / $uncomp_size);
             $object->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'. The uncompressed size is $uncomp_size. The compressed output is $percent_comp of the uncompressed size.");
             
+            $object->{run_options}->{body} = $uncompressed;
         }
     }
     if ($verbose) {
         print "I have finished testing the compression.\n";
     }
+}
+
+sub set_no_check_content
+{
+    my ($self, $value) = @_;
+    my $verbose = $self->{verbose};
+    if ($verbose) {
+        print "I am setting no content check to $value.\n";
+    }
+    $self->{no_check_content} = $value;
 }
 
 =head2 run
@@ -533,6 +526,70 @@ sub check_compression_private
 
 Run the cgi executable specified using L<set_cgi_executable> with the
 inputs specified in C<%options>.
+
+=head3 Possible options
+
+=over
+
+=item die_on_failure
+
+If this is set to a true value, the program dies if a test fails. If
+this is set to a false value then the program does not die, regardless
+of whether tests fail or not.
+
+=item no_check_content
+
+If this is set to a true value, the program does not check the
+Content-Type line produced by the CGI. This option is for the case
+where the CGI produces, for example, a "Location: " response without a
+body.
+
+=item REQUEST_METHOD
+
+This option may be set to one of POST, GET and HEAD. If not set at
+all, the module sets it to a default and prints a warning message. The
+module then sets the environment variable REQUEST_METHOD to this
+value.
+
+=item QUERY_STRING
+
+This option sets the environment variable C<QUERY_STRING> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item HTTP_COOKIE
+
+This option sets the environment variable C<HTTP_COOKIE> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item REMOTE_ADDR
+
+This option sets the environment variable C<REMOTE_ADDR> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=back
+
+=head3 Outputs
+
+The outputs are put into C<%options>
+
+=over
+
+=item body
+
+The body of the CGI output, after uncompression.
+
+=item header
+
+The header of the CGI output.
+
+=item exit_code
+
+The exit value of the CGI.
+
+=back
 
 =cut
 
@@ -561,12 +618,13 @@ sub run
     if ($self->{comp_test}) {
         check_compression_private ($self);
     }
-#    if ($self->{verbose}) {
+    if ($options->{die_on_failure}) {
+        if ($self->{failures} > 0) {
+            croak "You have selected 'die on failure'. I am dying due to $self->{failures} failed tests.\n";
+        }
+    } else {
         print "There were $self->{tests} tests. Of these, $self->{successes} succeeded and $self->{failures} failed.\n";
-    if ($self->{verbose}) {
-        print "My name is Michael Caine. Not a lot of people know that.\n";
     }
-#    }
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";
         $ENV{$e} = undef;
@@ -579,3 +637,23 @@ sub run
 }
 
 1;
+
+=head1 DEPENDENCIES
+
+This module depends on
+
+=over
+
+=item L<IPC::Run3>
+
+IPC::Run3 is used to run the CGI.
+
+=item L<IO::Uncompress::Gunzip>
+
+IO::Uncompress::Gunzip is used to test for correct decompression.
+
+=item L<Carp>
+
+Carp is used to print error messages.
+
+=back
