@@ -4,26 +4,26 @@ Test::CGI::External - run tests on an external CGI program
 
 =head1 SYNOPSIS
 
-use Test::CGI::External;
+    use Test::CGI::External;
 
-my $tester = Test::CGI::External->new ();
+    my $tester = Test::CGI::External->new ();
 
-$tester->set_cgi_executable ("x.cgi");
+    $tester->set_cgi_executable ("x.cgi");
 
-my %options;
+    my %options;
 
-# Automatically tests
+    # Automatically tests
 
-$tester->run (\%options);
+    $tester->run (\%options);
 
-$options{REQUEST_METHOD} = 'GET';
-$options{QUERY_STRING} = 'text="alcohol"';
+    $options{REQUEST_METHOD} = 'GET';
+    $options{QUERY_STRING} = 'text="alcohol"';
 
-$tester->run (\%options);
+    $tester->run (\%options);
 
-# Test compression of output
+    # Test compression of output
 
-$tester->do_compression_test (1);
+    $tester->do_compression_test (1);
 
 The uncompressed output is in C<$options{body}>.
 
@@ -656,3 +656,14 @@ IO::Uncompress::Gunzip is used to test for correct decompression.
 Carp is used to print error messages.
 
 =back
+
+=head1 AUTHOR
+
+Ben Bullock, <bkb@cpan.org>
+
+=head1 COPYRIGHT
+
+Perl module Test::CGI::External and associated files may be used,
+copied, modified and distributed under the same terms as the Perl 5
+programming language itself, either the Artistic Licence or the GNU
+General Public Licence.
