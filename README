@@ -1,6 +1,17 @@
 Test::CGI::External is a tool for running basic checks of the
 operation of a CGI program. It is meant to be used for "sanity checks"
 of CGI program operation before a program is uploaded to a web server.
+The tested CGI program can be in any language; Test::CGI::External is
+meant to test external programs which are completely independent of
+itself. Test::CGI::External was originally created to check the
+operation of CGI programs written in the C programming language.
+
+In a Perl script,
+
+    my $tester = Test::CGI::External->new ();
+    $tester->set_cgi_executable ('example.cgi');
+    my %options;
+    $tester->run (\%options);
 
 For example, say there is a program called "example.cgi" and it is
 required to test that example.cgi produces a correct Content-Type
@@ -10,20 +21,26 @@ exits with a zero status, or does not print error messages during
 normal operations.  Test::CGI::External tests whether example.cgi is a
 valid CGI program in place, that is to say Test::CGI::External is
 meant for testing the CGI program before it is put on to a web
-server. Because it is meant to do basic sanity tests which would
-usually cause things like 500 errors when used on a web server,
-Test::CGI::External does not access CGI programs via a web server, but
-as a stand-alone program, under a faked CGI-like environment created
-by manipulating environment variables.
+server. Because it is meant to do basic sanity tests to detect errors
+such as malformed headers, which cause errors when the CGI program is
+run via a web server, Test::CGI::External does not access CGI programs
+via a web server, but as a stand-alone program, under a faked CGI-like
+environment created by manipulating environment variables.
 
-In a Perl script,
+To install the module,
 
-    my $tester = Test::CGI::External->new ();
-    $tester->set_cgi_executable ('example.cgi');
-    my %options;
-    $tester->run (\%options);
+    perl Makefile.PL
+    make
+    make test
+    make install
 
-The tested CGI program can be in any language; Test::CGI::External is
-meant to test external programs which are completely independent of
-itself. Test::CGI::External was originally created to check the
-operation of CGI programs written in the C programming language.
+To read the documentation,
+
+    perldoc lib/Test/CGI/External.pm
+
+or
+
+    perldoc Test::CGI::External
+
+after installation.
+
