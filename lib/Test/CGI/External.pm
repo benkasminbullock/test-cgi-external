@@ -230,6 +230,9 @@ sub run_private
     # Hassle up the CGI inputs, including environment variables, from
     # the options the user has given.
 
+    # mwforum requires GATEWAY_INTERFACE to be set to CGI/1.1
+    setenv_private ($object, 'GATEWAY_INTERFACE', 'CGI/1.1');
+
     my $query_string = $options->{QUERY_STRING};
     if (defined $query_string) {
         if ($verbose) {
