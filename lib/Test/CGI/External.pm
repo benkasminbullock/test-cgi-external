@@ -56,6 +56,9 @@ Create a new testing object.
 sub new
 {
     my %tester;
+    for my $t (qw/tests failures successes/) {
+        $tester{$t} = 0;
+    }
     return bless \%tester;
 }
 
@@ -73,16 +76,19 @@ sub set_cgi_executable
 {
     my ($self, $cgi_executable) = @_;
     if ($self->{verbose}) {
-        print "I am setting the CGI executable to be tested to '$cgi_executable'.\n";
+        print "# I am setting the CGI executable to be tested to '$cgi_executable'.\n";
     }
     if (! -f $cgi_executable) {
-        carp "I cannot find a file corresponding to CGI executable '$cgi_executable'";
+        $self->fail_test ("I cannot find a file corresponding to CGI executable '$cgi_executable'");
     }
-    elsif (! -x $cgi_executable) {
-        carp "The CGI executable '$cgi_executable' exists but is not executable";
+    else {
+	$self->pass_test ("found executable $cgi_executable");
     }
-    elsif ($self->{verbose}) {
-        print "This executable exists and is executable.\n";
+    if (! -x $cgi_executable) {
+        $self->fail_test ("The CGI executable '$cgi_executable' exists but is not executable");
+    }
+    else {
+	$self->pass_test ("$cgi_executable is executable");
     }
     $self->{cgi_executable} = $cgi_executable;
 }
@@ -103,7 +109,7 @@ sub do_compression_test
     my ($self, $switch) = @_;
     $switch = !! $switch;
     if ($self->{verbose}) {
-        print "You have asked me to turn ";
+        print "# You have asked me to turn ";
         if ($switch) {
             print "on";
         }
@@ -128,7 +134,7 @@ sub expect_charset
 {
     my ($self, $charset) = @_;
     if ($self->{verbose}) {
-        print "You have told me to expect a 'charset' value of '$charset'.\n";
+        print "# You have told me to expect a 'charset' value of '$charset'.\n";
     }
     $self->{expected_charset} = $charset;
 }
@@ -147,7 +153,7 @@ sub set_verbosity
     my ($self, $verbosity) = @_;
     $self->{verbose} = !! $verbosity;
     if ($self->{verbose}) {
-        print "You have asked ", __PACKAGE__, " to print messages as it works.\n";
+        print "# You have asked ", __PACKAGE__, " to print messages as it works.\n";
     }
 }
 
@@ -162,7 +168,8 @@ sub check_request_method
             carp "You have set the request method to a value '$request_method' which is not one of the ones I know about, which are ", join (', ', @request_method_list), " so I am setting it to the default, '$default_request_method'";
             $request_method = $default_request_method;
         }
-    } else {
+    }
+    else {
         carp "You have not set the request method, so I am setting it to the default, '$default_request_method'";
         $request_method = $default_request_method;
     }
@@ -177,7 +184,7 @@ sub pass_test
     $self->{successes} += 1;
     $self->{tests} += 1;
     if ($self->{verbose}) {
-        print "Test #$self->{tests}: Success: $test.\n";
+        print "ok $self->{tests} - $test.\n";
     }
 }
 
@@ -188,7 +195,15 @@ sub fail_test
     my ($self, $test) = @_;
     $self->{failures} += 1;
     $self->{tests} += 1;
-    print STDERR "Test #$self->{tests}: Failure: $test.\n";
+    print "not ok $self->{tests} - $test.\n";
+}
+
+# Print the TAP plan
+
+sub plan
+{
+    my ($self) = @_;
+    print "1..$self->{tests}\n";
 }
 
 # Fail a test which means that we cannot keep going.
@@ -236,25 +251,32 @@ sub run_private
     my $query_string = $options->{QUERY_STRING};
     if (defined $query_string) {
         if ($verbose) {
-            print "I am setting the query string to '$query_string'.\n";
+            print "# I am setting the query string to '$query_string'.\n";
         }
         setenv_private ($object, 'QUERY_STRING', $query_string);
     }
     elsif ($verbose) {
-        print "There is no query string.\n";
+        print "# There is no query string.\n";
     }
     my $request_method = check_request_method ($options->{REQUEST_METHOD});
     if ($verbose) {
-        print "The request method is '$request_method'.\n";
+        print "# The request method is '$request_method'.\n";
     }
     setenv_private ($object, 'REQUEST_METHOD', $request_method);
+    my $content_type = $options->{CONTENT_TYPE};
+    if ($content_type) {
+	if ($verbose) {
+	    print "# The content type is '$content_type'.\n";
+	}
+	setenv_private ($object, 'CONTENT_TYPE', $content_type);
+    }
     if ($options->{HTTP_COOKIE}) {
         setenv_private ($object, 'HTTP_COOKIE', $options->{HTTP_COOKIE});
     }
     my $remote_addr = $object->{run_options}->{REMOTE_ADDR};
     if ($remote_addr) {
         if ($verbose) {
-            print "I am setting the remote address to '$remote_addr'.\n";
+            print "# I am setting the remote address to '$remote_addr'.\n";
         }
         setenv_private ($object, 'REMOTE_ADDR', $remote_addr);
     }
@@ -264,13 +286,13 @@ sub run_private
         my $content_length = length ($input);
         setenv_private ($object, 'CONTENT_LENGTH', $content_length);
         if ($verbose) {
-            print "I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n";
+            print "# I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n";
         }
     }
 
     if ($comp_test) {
         if ($verbose) {
-            print "I am requesting gzip encoding from the CGI executable.\n";
+            print "# I am requesting gzip encoding from the CGI executable.\n";
         }
         setenv_private ($object, 'HTTP_ACCEPT_ENCODING', 'gzip, fake');
     }
@@ -280,11 +302,11 @@ sub run_private
     my $standard_output;
     my $error_output;
     if ($verbose) {
-        print "I am running the program.\n";
+        print "# I am running the program.\n";
     }
     run3 ($cgi_executable, \$input, \$standard_output, \$error_output);
     if ($verbose) {
-        printf "The program has now finished running. There were %d bytes of output.\n", length ($standard_output);
+        printf "# The program has now finished running. There were %d bytes of output.\n", length ($standard_output);
     }
     $options->{exit_code} = $?;
     if ($options->{exit_code} != 0) {
@@ -362,7 +384,7 @@ sub check_content_line_private
     my $content_type_line;
 
     if ($verbose) {
-        print "I am checking to see if the output contains a valid content type line.\n";
+        print "# I am checking to see if the output contains a valid content type line.\n";
     }
     my $content_type_ok;
     if ($header =~ m!(Content-Type:\s*.*)!i) {
@@ -398,7 +420,7 @@ sub check_content_line_private
             else {
                 $content_type_ok = 1;
                 if ($verbose) {
-                    print "I am not testing for the 'charset' parameter.\n";
+                    print "# I am not testing for the 'charset' parameter.\n";
                 }
             }
         }
@@ -410,7 +432,7 @@ sub check_content_line_private
         $object->fail_test ("There is no 'Content-Type' line in the output.");
     }
     if ($content_type_ok && $verbose) {
-        print "The content-type line appears to be OK.\n";
+        print "# The content-type line appears to be OK.\n";
     }
 }
 
@@ -418,7 +440,7 @@ sub check_http_header_syntax_private
 {
     my ($object, $header, $verbose) = @_;
     if ($verbose) {
-        print "I am checking the HTTP header produced.\n";
+        print "# I am checking the HTTP header produced.\n";
     }
     my @lines = split /\r?\n/, $header;
     my $line_number = 0;
@@ -446,7 +468,7 @@ sub check_http_header_syntax_private
         }
     }
     if ($verbose) {
-        print "I have finished checking the HTTP header for consistency.\n";
+        print "# I have finished checking the HTTP header for consistency.\n";
     }
 }
 
@@ -479,7 +501,7 @@ sub check_compression_private
     my $header = $object->{run_options}->{header};
     my $verbose = $object->{verbose};
     if ($verbose) {
-        print "I am testing whether compression has been applied to the output.\n";
+        print "# I am testing whether compression has been applied to the output.\n";
     }
     if ($header !~ /Content-Encoding:.*\bgzip\b/i) {
         $object->fail_test ("Output '$header' does not have a header indicating compression");
@@ -506,7 +528,7 @@ sub check_compression_private
         }
     }
     if ($verbose) {
-        print "I have finished testing the compression.\n";
+        print "# I have finished testing the compression.\n";
     }
 }
 
@@ -515,7 +537,7 @@ sub set_no_check_content
     my ($self, $value) = @_;
     my $verbose = $self->{verbose};
     if ($verbose) {
-        print "I am setting no content check to $value.\n";
+        print "# I am setting no content check to $value.\n";
     }
     $self->{no_check_content} = $value;
 }
@@ -559,6 +581,13 @@ This option sets the environment variable C<QUERY_STRING> to whatever
 its value is. The environment variable is then unset at the end of the
 test run.
 
+=item CONTENT_TYPE
+
+The content type of the input. This is used when REQUEST_METHOD is
+POST. It is usually either C<application/x-www-form-urlencoded> or
+C<multipart/form-data>. C<application/x-www-form-urlencoded> is the
+default value for CGI form queries.
+
 =item HTTP_COOKIE
 
 This option sets the environment variable C<HTTP_COOKIE> to whatever
@@ -570,6 +599,10 @@ test run.
 This option sets the environment variable C<REMOTE_ADDR> to whatever
 its value is. The environment variable is then unset at the end of the
 test run.
+
+=item input
+
+Input to send to the CGI program with a POST request.
 
 =back
 
@@ -598,9 +631,6 @@ The exit value of the CGI.
 sub run
 {
     my ($self, $options) = @_;
-    for my $t (qw/tests failures successes/) {
-        $self->{$t} = 0;
-    }
     if (! $self->{cgi_executable}) {
         croak "You have requested me to run a CGI executable with 'run' without telling me what it is you want me to run. Please tell me the name of the CGI executable using the method 'set_cgi_executable'.";
     }
@@ -612,7 +642,7 @@ sub run
         $self->{run_options} = $options;
     }
     if ($self->{verbose}) {
-        print "I am commencing the testing of CGI executable '$self->{cgi_executable}'.\n";
+        print "# I am commencing the testing of CGI executable '$self->{cgi_executable}'.\n";
     }
 #    eval {
     run_private ($self);
@@ -624,8 +654,9 @@ sub run
         if ($self->{failures} > 0) {
             croak "You have selected 'die on failure'. I am dying due to $self->{failures} failed tests.\n";
         }
-    } else {
-        print "There were $self->{tests} tests. Of these, $self->{successes} succeeded and $self->{failures} failed.\n";
+    }
+    else {
+        print "# There were $self->{tests} tests. Of these, $self->{successes} succeeded and $self->{failures} failed.\n";
     }
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";

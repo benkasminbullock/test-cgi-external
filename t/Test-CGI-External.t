@@ -1,8 +1,7 @@
 use warnings;
 use strict;
 use FindBin;
-use Test::More tests => 1;
-BEGIN { use_ok('Test::CGI::External') };
+
 use Test::CGI::External;
 
 my $tester = Test::CGI::External->new ();
@@ -14,6 +13,7 @@ my %options;
 $options{REQUEST_METHOD} = 'GET';
 
 $tester->run (\%options);
+$tester->plan ();
 
 # Local variables:
 # mode: perl
