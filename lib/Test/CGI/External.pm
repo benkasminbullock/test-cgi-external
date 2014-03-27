@@ -30,6 +30,7 @@ The uncompressed output is in C<$options{body}>.
 =cut
 
 package Test::CGI::External;
+use 5.006;
 require Exporter;
 @ISA = qw(Exporter);
 @EXPORT_OK = qw//;
