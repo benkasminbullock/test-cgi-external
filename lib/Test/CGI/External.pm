@@ -183,9 +183,7 @@ sub pass_test
     my ($self, $test) = @_;
     $self->{successes} += 1;
     $self->{tests} += 1;
-    if ($self->{verbose}) {
-        print "ok $self->{tests} - $test.\n";
-    }
+    print "ok $self->{tests} - $test.\n";
 }
 
 # Fail a test and keep going.
@@ -517,7 +515,7 @@ sub check_compression_private
             open my $temp, ">:bytes", $failedfile or die $!;
             print $temp $body;
             close $temp or die $!;
-            print "Saved failed output to $failedfile.\n";
+            print "# Saved failed output to $failedfile.\n";
         }
         else {
             my $uncomp_size = length $uncompressed;
