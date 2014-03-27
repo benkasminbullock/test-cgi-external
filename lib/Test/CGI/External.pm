@@ -27,6 +27,41 @@ Test::CGI::External - run tests on an external CGI program
 
 The uncompressed output is in C<$options{body}>.
 
+=head1 DESCRIPTION
+
+Test::CGI::External is a tool for running basic checks of the
+operation of a CGI (common gateway interface) program. It is meant to
+be used for "sanity checks" of CGI program operation without an
+intermediate web server, so it is used before the program is uploaded
+to the web server. For example it can be used to check that the CGI
+program does not contain stray printf statements. If a program with
+stray printf statements is uploaded to the web server and run as a CGI
+program, the browser will show only a 500 Server Error message.
+
+The tested CGI program can be in any language; Test::CGI::External is
+meant to test external programs which are completely independent of
+itself. Test::CGI::External was originally created to check the
+operation of CGI programs written in the C programming language.
+
+Test::CGI::External runs CGI programs as stand-alone programs, under a
+faked CGI-like environment created by manipulating environment
+variables.
+
+In a Perl script,
+
+    my $tester = Test::CGI::External->new ();
+    $tester->set_cgi_executable ('example.cgi');
+    my %options;
+    $tester->run (\%options);
+
+For example, say there is a program called F<example.cgi> and it is
+required to test that example.cgi produces a correct C<Content-Type>
+header, does not print out ill-formed headers (for example, print
+debugging messages on standard output), or test whether F<example.cgi>
+exits with a zero status, or does not print error messages during
+normal operations.
+
+
 =cut
 
 package Test::CGI::External;
@@ -75,7 +110,7 @@ checks fails.
 
 sub set_cgi_executable
 {
-    my ($self, $cgi_executable) = @_;
+    my ($self, $cgi_executable, @command_line_options) = @_;
     if ($self->{verbose}) {
         print "# I am setting the CGI executable to be tested to '$cgi_executable'.\n";
     }
@@ -92,6 +127,12 @@ sub set_cgi_executable
 	$self->pass_test ("$cgi_executable is executable");
     }
     $self->{cgi_executable} = $cgi_executable;
+    if (@command_line_options) {
+	$self->{command_line_options} = \@command_line_options;
+    }
+    else {
+	$self->{command_line_options} = [];
+    }
 }
 
 =head2 do_compression_test
@@ -303,7 +344,8 @@ sub run_private
     if ($verbose) {
         print "# I am running the program.\n";
     }
-    run3 ($cgi_executable, \$input, \$standard_output, \$error_output);
+    run3 ([$cgi_executable, @{$object->{command_line_options}}],
+	  \$input, \$standard_output, \$error_output);
     if ($verbose) {
         printf "# The program has now finished running. There were %d bytes of output.\n", length ($standard_output);
     }
@@ -348,6 +390,9 @@ sub run_private
 #     ('(', ')', '<', '>', '@', ',', ';', ':', '\\', '"',
 #      '/', '[', ']', '?', '=', '{', '}', \x32, \x09 );
 # @token_valid_chars{@tspecials} = (0) x @tspecials;
+
+# These regexes are for testing the validity of the HTTP headers
+# produced by the CGI script.
 
 my $HTTP_CTL = qr/[\x{0}-\x{1F}\x{7f}]/;
 
