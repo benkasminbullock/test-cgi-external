@@ -2,12 +2,27 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
+my $pm = 'lib/Test/CGI/External.pm';
+my $github = 'github.com/benkasminbullock/test-cgi-external';
+my $repo = "https://$github";
+
 WriteMakefile1(
     LICENSE => 'perl',
     MIN_PERL_VERSION => '5.006',
     META_MERGE => {
+	'meta-spec' => {
+	    version => 2,
+	},
         resources => {
-            repository => 'https://github.com/benkasminbullock/Test-CGI-External',
+            repository => {
+		type => 'git',
+		url => "git://$github.git",
+		web => $repo,
+	    },
+            bugtracker => {
+		web => "$repo/issues",
+	    },
+#	    homepage => 'http://',
         },
     },
     #BUILD_REQUIRES => {
