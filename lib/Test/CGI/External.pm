@@ -40,7 +40,7 @@ use Carp;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use IPC::Run3;
 
-our $VERSION = 0.01;
+our $VERSION = '0.00_01';
 
 =head1 METHODS
 

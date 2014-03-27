@@ -1,3 +1,6 @@
 # Perl build related files
 
 Makefile
+MANIFEST
+README
+Test-CGI-External-[0-9]*

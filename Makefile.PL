@@ -7,6 +7,7 @@ my $github = 'github.com/benkasminbullock/test-cgi-external';
 my $repo = "https://$github";
 
 WriteMakefile1(
+    AUTHOR => 'Ben Bullock <bkb@cpan.org>',
     LICENSE => 'perl',
     MIN_PERL_VERSION => '5.006',
     META_MERGE => {
