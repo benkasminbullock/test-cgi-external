@@ -3,11 +3,13 @@ use warnings;
 use ExtUtils::MakeMaker;
 
 my $pm = 'lib/Test/CGI/External.pm';
+my $pod = 'lib/Test/CGI/External.pod';
 my $github = 'github.com/benkasminbullock/test-cgi-external';
 my $repo = "https://$github";
 
 WriteMakefile1(
     AUTHOR => 'Ben Bullock <bkb@cpan.org>',
+    ABSTRACT_FROM => $pod,
     LICENSE => 'perl',
     MIN_PERL_VERSION => '5.006',
     META_MERGE => {
@@ -35,6 +37,7 @@ WriteMakefile1(
         'Test::More' => 0,
         'IPC::Run3' => 0,
         'IO::Uncompress::Gunzip' => 0,
+	'Test::Builder' => 0,
     },
 );
 

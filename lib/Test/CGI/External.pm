@@ -1,69 +1,3 @@
-=head1 Test::CGI::External
-
-Test::CGI::External - run tests on an external CGI program
-
-=head1 SYNOPSIS
-
-    use Test::CGI::External;
-
-    my $tester = Test::CGI::External->new ();
-
-    $tester->set_cgi_executable ("x.cgi");
-
-    my %options;
-
-    # Automatically tests
-
-    $tester->run (\%options);
-
-    $options{REQUEST_METHOD} = 'GET';
-    $options{QUERY_STRING} = 'text="alcohol"';
-
-    $tester->run (\%options);
-
-    # Test compression of output
-
-    $tester->do_compression_test (1);
-
-The uncompressed output is in C<$options{body}>.
-
-=head1 DESCRIPTION
-
-Test::CGI::External is a tool for running basic checks of the
-operation of a CGI (common gateway interface) program. It is meant to
-be used for "sanity checks" of CGI program operation without an
-intermediate web server, so it is used before the program is uploaded
-to the web server. For example it can be used to check that the CGI
-program does not contain stray printf statements. If a program with
-stray printf statements is uploaded to the web server and run as a CGI
-program, the browser will show only a 500 Server Error message.
-
-The tested CGI program can be in any language; Test::CGI::External is
-meant to test external programs which are completely independent of
-itself. Test::CGI::External was originally created to check the
-operation of CGI programs written in the C programming language.
-
-Test::CGI::External runs CGI programs as stand-alone programs, under a
-faked CGI-like environment created by manipulating environment
-variables.
-
-In a Perl script,
-
-    my $tester = Test::CGI::External->new ();
-    $tester->set_cgi_executable ('example.cgi');
-    my %options;
-    $tester->run (\%options);
-
-For example, say there is a program called F<example.cgi> and it is
-required to test that example.cgi produces a correct C<Content-Type>
-header, does not print out ill-formed headers (for example, print
-debugging messages on standard output), or test whether F<example.cgi>
-exits with a zero status, or does not print error messages during
-normal operations.
-
-
-=cut
-
 package Test::CGI::External;
 use 5.006;
 require Exporter;
@@ -74,20 +8,10 @@ use strict;
 use Carp;
 use IO::Uncompress::Gunzip qw(gunzip $GunzipError);
 use IPC::Run3;
+#use File::Temp 'tempfile';
+use Test::Builder;
 
-our $VERSION = '0.00_01';
-
-=head1 METHODS
-
-=cut
-
-=head2 new
-
-    my $tester = Test::CGI::External->new ();
-
-Create a new testing object.
-
-=cut
+our $VERSION = '0.02';
 
 sub new
 {
@@ -95,24 +19,18 @@ sub new
     for my $t (qw/tests failures successes/) {
         $tester{$t} = 0;
     }
+
+    my $tb = Test::Builder->new ();
+    $tester{tb} = $tb;
+
     return bless \%tester;
 }
-
-=head2 set_cgi_executable
-
-    $tester->set_cgi_executable ('my.cgi');
-
-Set the CGI program to be tested to 'my.cgi'. This checks whether the
-file exists and is executable, and prints a warning if either of these
-checks fails.
-
-=cut
 
 sub set_cgi_executable
 {
     my ($self, $cgi_executable, @command_line_options) = @_;
     if ($self->{verbose}) {
-        print "# I am setting the CGI executable to be tested to '$cgi_executable'.\n";
+        $self->{tb}->note ("I am setting the CGI executable to be tested to '$cgi_executable'.\n");
     }
     if (! -f $cgi_executable) {
         $self->fail_test ("I cannot find a file corresponding to CGI executable '$cgi_executable'");
@@ -135,67 +53,39 @@ sub set_cgi_executable
     }
 }
 
-=head2 do_compression_test
-
-    $tester->do_compression_test (1);
-
-Turn on or off testing of compression of the output of the CGI program
-which is being tested. Give any true value as the first argument to
-turn on compression testing. Give any false value to turn off
-compression testing.
-
-=cut
-
 sub do_compression_test
 {
     my ($self, $switch) = @_;
     $switch = !! $switch;
     if ($self->{verbose}) {
-        print "# You have asked me to turn ";
+	my $msg = "You have asked me to turn ";
         if ($switch) {
-            print "on";
+            $msg .= "on";
         }
         else {
-            print "off";
+            $msg .= "off";
         }
-        print " testing of compression.\n";
+        $msg .= " testing of compression.\n";
+	$self->{tb}->note ($msg);
     }
     $self->{comp_test} = $switch;
 }
-
-=head2 expect_charset
-
-    $tester->expect_charset ('UTF-8');
-
-Tell the tester to test whether the header and output have the correct
-character set.
-
-=cut
 
 sub expect_charset
 {
     my ($self, $charset) = @_;
     if ($self->{verbose}) {
-        print "# You have told me to expect a 'charset' value of '$charset'.\n";
+	$self->{tb}->note ("You have told me to expect a 'charset' value of '$charset'.\n");
     }
     $self->{expected_charset} = $charset;
 }
-
-=head2 set_verbosity
-
-    $tester->set_verbosity (1);
-
-This turns on or off messages from the module informing you of what it
-is doing.
-
-=cut
 
 sub set_verbosity
 {
     my ($self, $verbosity) = @_;
     $self->{verbose} = !! $verbosity;
     if ($self->{verbose}) {
-        print "# You have asked ", __PACKAGE__, " to print messages as it works.\n";
+        $self->{tb}->note ("# You have asked ", __PACKAGE__, " to print messages as it works.\n");
     }
 }
 
@@ -225,7 +115,10 @@ sub pass_test
     my ($self, $test) = @_;
     $self->{successes} += 1;
     $self->{tests} += 1;
-    print "ok $self->{tests} - $test.\n";
+
+    $self->{tb}->ok (1, $test);
+
+#    print "ok $self->{tests} - $test.\n";
 }
 
 # Fail a test and keep going.
@@ -235,7 +128,10 @@ sub fail_test
     my ($self, $test) = @_;
     $self->{failures} += 1;
     $self->{tests} += 1;
-    print "not ok $self->{tests} - $test.\n";
+
+    $self->{tb}->ok (0, $test);
+
+#    print "not ok $self->{tests} - $test.\n";
 }
 
 # Print the TAP plan
@@ -243,7 +139,8 @@ sub fail_test
 sub plan
 {
     my ($self) = @_;
-    print "1..$self->{tests}\n";
+    $self->{tb}->done_testing ();
+    #print "1..$self->{tests}\n";
 }
 
 # Fail a test which means that we cannot keep going.
@@ -251,7 +148,7 @@ sub plan
 sub abort_test
 {
     my ($self, $test) = @_;
-    die "$test. I have to stop working now.\n";
+    $self->{tb}->skip_all ($test);
 }
 
 sub setenv_private
@@ -291,22 +188,22 @@ sub run_private
     my $query_string = $options->{QUERY_STRING};
     if (defined $query_string) {
         if ($verbose) {
-            print "# I am setting the query string to '$query_string'.\n";
+            $object->{tb}->note ("I am setting the query string to '$query_string'.\n");
         }
         setenv_private ($object, 'QUERY_STRING', $query_string);
     }
     elsif ($verbose) {
-        print "# There is no query string.\n";
+	$object->{tb}->note ("There is no query string.\n");
     }
     my $request_method = check_request_method ($options->{REQUEST_METHOD});
     if ($verbose) {
-        print "# The request method is '$request_method'.\n";
+	$object->{tb}->note ("The request method is '$request_method'.\n");
     }
     setenv_private ($object, 'REQUEST_METHOD', $request_method);
     my $content_type = $options->{CONTENT_TYPE};
     if ($content_type) {
 	if ($verbose) {
-	    print "# The content type is '$content_type'.\n";
+	    $object->{tb}->note ("The content type is '$content_type'.\n");
 	}
 	setenv_private ($object, 'CONTENT_TYPE', $content_type);
     }
@@ -316,7 +213,7 @@ sub run_private
     my $remote_addr = $object->{run_options}->{REMOTE_ADDR};
     if ($remote_addr) {
         if ($verbose) {
-            print "# I am setting the remote address to '$remote_addr'.\n";
+	    $object->{tb}->note ("I am setting the remote address to '$remote_addr'.\n");
         }
         setenv_private ($object, 'REMOTE_ADDR', $remote_addr);
     }
@@ -326,13 +223,13 @@ sub run_private
         my $content_length = length ($input);
         setenv_private ($object, 'CONTENT_LENGTH', $content_length);
         if ($verbose) {
-            print "# I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n";
+	    $object->{tb}->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n");
         }
     }
 
     if ($comp_test) {
         if ($verbose) {
-            print "# I am requesting gzip encoding from the CGI executable.\n";
+	    $object->{tb}->note ("I am requesting gzip encoding from the CGI executable.\n");
         }
         setenv_private ($object, 'HTTP_ACCEPT_ENCODING', 'gzip, fake');
     }
@@ -342,12 +239,12 @@ sub run_private
     my $standard_output;
     my $error_output;
     if ($verbose) {
-        print "# I am running the program.\n";
+        	$object->{tb}->note ("I am running the program.\n");
     }
     run3 ([$cgi_executable, @{$object->{command_line_options}}],
 	  \$input, \$standard_output, \$error_output);
     if ($verbose) {
-        printf "# The program has now finished running. There were %d bytes of output.\n", length ($standard_output);
+	$object->{tb}->note (sprintf ("The program has now finished running. There were %d bytes of output.\n", length ($standard_output)));
     }
     $options->{exit_code} = $?;
     if ($options->{exit_code} != 0) {
@@ -358,7 +255,7 @@ sub run_private
         else {
             $message .= "It did not print any message on the error stream.\n";
         }
-        $object->abort_test ($message);
+        $object->fail_test ($message);
     }
     else {
         $object->pass_test ("The CGI executable exited with a zero status");
@@ -586,95 +483,10 @@ sub set_no_check_content
     $self->{no_check_content} = $value;
 }
 
-=head2 run
-
-    my %options;
-    $options{query} = "q=rupert+the+bear";
-    $tester->run (\%options);
-
-Run the cgi executable specified using L<set_cgi_executable> with the
-inputs specified in C<%options>.
-
-=head3 Possible options
-
-=over
-
-=item die_on_failure
-
-If this is set to a true value, the program dies if a test fails. If
-this is set to a false value then the program does not die, regardless
-of whether tests fail or not.
-
-=item no_check_content
-
-If this is set to a true value, the program does not check the
-Content-Type line produced by the CGI. This option is for the case
-where the CGI produces, for example, a "Location: " response without a
-body.
-
-=item REQUEST_METHOD
-
-This option may be set to one of POST, GET and HEAD. If not set at
-all, the module sets it to a default and prints a warning message. The
-module then sets the environment variable REQUEST_METHOD to this
-value.
-
-=item QUERY_STRING
-
-This option sets the environment variable C<QUERY_STRING> to whatever
-its value is. The environment variable is then unset at the end of the
-test run.
-
-=item CONTENT_TYPE
-
-The content type of the input. This is used when REQUEST_METHOD is
-POST. It is usually either C<application/x-www-form-urlencoded> or
-C<multipart/form-data>. C<application/x-www-form-urlencoded> is the
-default value for CGI form queries.
-
-=item HTTP_COOKIE
-
-This option sets the environment variable C<HTTP_COOKIE> to whatever
-its value is. The environment variable is then unset at the end of the
-test run.
-
-=item REMOTE_ADDR
-
-This option sets the environment variable C<REMOTE_ADDR> to whatever
-its value is. The environment variable is then unset at the end of the
-test run.
-
-=item input
-
-Input to send to the CGI program with a POST request.
-
-=back
-
-=head3 Outputs
-
-The outputs are put into C<%options>
-
-=over
-
-=item body
-
-The body of the CGI output, after uncompression.
-
-=item header
-
-The header of the CGI output.
-
-=item exit_code
-
-The exit value of the CGI.
-
-=back
-
-=cut
-
 sub run
 {
     my ($self, $options) = @_;
+    local $Test::Builder::Level = $Test::Builder::Level + 1;
     if (! $self->{cgi_executable}) {
         croak "You have requested me to run a CGI executable with 'run' without telling me what it is you want me to run. Please tell me the name of the CGI executable using the method 'set_cgi_executable'.";
     }
@@ -700,48 +512,64 @@ sub run
         }
     }
     else {
-        print "# There were $self->{tests} tests. Of these, $self->{successes} succeeded and $self->{failures} failed.\n";
+        $self->{tb}->note ("# There were $self->{tests} tests. Of these, $self->{successes} succeeded and $self->{failures} failed.\n");
     }
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";
         $ENV{$e} = undef;
     }
     $self->{set_env} = undef;
-#    };
-#    if ($@) {
-#        print STDERR "The following fatal errors occurred: $@\n";
-#    }
 }
+
+# The following is a replacement for IPC::Run3's "run3". 
+
+# sub run3
+# {
+#     my ($exe, $input, $output, $errors) = @_;
+#     my $cmd = "@$exe";
+#     my $infile;
+#     if ($$input) {
+# 	(my $in, $infile) = tempfile ("input-XXXXXX");
+# 	binmode $in, ":raw";
+# 	print $in $$input;
+# 	close $in or die $!;
+# 	$cmd .= " < $infile";
+#     }
+#     my ($out, $outfile) = tempfile ("output-XXXXXX");
+#     close $out or die $!;
+#     my ($err, $errfile) = tempfile ("errors-XXXXXX");
+#     close $err or die $!;
+    
+#     my $status = system ("$cmd > $outfile 2> $errfile");
+
+#     $$output = '';
+#     if (-f $outfile) {
+# 	open my $out, "<", $outfile or die $!;
+# 	while (<$out>) {
+# 	    $$output .= $_;
+# 	}
+# 	close $out or die $!;
+#     }
+#     $$errors = '';
+#     if (-f $errfile) {
+# 	open my $err, "<", $errfile or die $!;
+# 	while (<$err>) {
+# 	    $$errors .= $_;
+# 	}
+# 	close $err or die $!;
+#     }
+
+# #    print "$$output\n";
+# #    print "$$errors\n";
+# #    exit;
+
+#     if ($infile) {
+# 	unlink $infile or die $!;
+#     }
+#     unlink $outfile or die $!;
+#     unlink $errfile or die $!;
+#     return $status;
+# }
 
 1;
 
-=head1 DEPENDENCIES
-
-This module depends on
-
-=over
-
-=item L<IPC::Run3>
-
-IPC::Run3 is used to run the CGI.
-
-=item L<IO::Uncompress::Gunzip>
-
-IO::Uncompress::Gunzip is used to test for correct decompression.
-
-=item L<Carp>
-
-Carp is used to print error messages.
-
-=back
-
-=head1 AUTHOR
-
-Ben Bullock, <bkb@cpan.org>
-
-=head1 COPYRIGHT
-
-Perl module Test::CGI::External and associated files may be used,
-copied, modified and distributed under the same terms as the Perl 5
-programming language itself, either the Artistic Licence or the GNU
-General Public Licence.

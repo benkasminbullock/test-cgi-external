@@ -1,0 +1,230 @@
+=head1 NAME
+
+Test::CGI::External - run tests on an external CGI program
+
+=head1 SYNOPSIS
+
+    use Test::CGI::External;
+
+    my $tester = Test::CGI::External->new ();
+
+    $tester->set_cgi_executable ("x.cgi");
+
+    my %options;
+
+    # Automatically tests
+
+    $tester->run (\%options);
+
+    $options{REQUEST_METHOD} = 'GET';
+    $options{QUERY_STRING} = 'text="alcohol"';
+
+    $tester->run (\%options);
+
+    # Test compression of output
+
+    $tester->do_compression_test (1);
+
+The uncompressed output is in C<$options{body}>.
+
+=head1 DESCRIPTION
+
+Test::CGI::External is a tool for running basic checks of the
+operation of a CGI (common gateway interface) program. It is meant to
+be used for "sanity checks" of CGI program operation. For example if a
+CGI program prints stuff on standard output before it prints its
+headers, this causes an obscure server error message when running from
+behind a server, so Test::CGI::External is meant for the testing stage
+before the program is put onto a web server. One of the main errors
+this module catches for the author is stray printf statements. If a
+program with stray printf statements is uploaded to the web server and
+run as a CGI program, the browser will show only a 500 Server Error
+message. Another typical mistake is forgetting to make the CGI program
+executable; again, this results in a weird server error.
+
+The tested CGI program can be in any language, not just Perl;
+Test::CGI::External is meant to test external programs which are
+completely independent of itself. Test::CGI::External was originally
+created to check the operation of CGI programs written in the C
+programming language.
+
+Test::CGI::External runs CGI programs as stand-alone programs, under a
+faked CGI-like environment created by manipulating environment
+variables.
+
+In a Perl script,
+
+    my $tester = Test::CGI::External->new ();
+    $tester->set_cgi_executable ('example.cgi');
+    my %options;
+    $tester->run (\%options);
+
+For example, say there is a program called F<example.cgi> and it is
+required to test that example.cgi produces a correct C<Content-Type>
+header, does not print out ill-formed headers (for example, print
+debugging messages on standard output), or test whether F<example.cgi>
+exits with a zero status, or does not print error messages during
+normal operations.
+
+
+
+=head1 METHODS
+
+
+=head2 new
+
+    my $tester = Test::CGI::External->new ();
+
+Create a new testing object.
+
+
+=head2 set_cgi_executable
+
+    $tester->set_cgi_executable ('my.cgi');
+
+Set the CGI program to be tested to 'my.cgi'. This checks whether the
+file exists and is executable, and prints a warning if either of these
+checks fails.
+
+
+=head2 do_compression_test
+
+    $tester->do_compression_test (1);
+
+Turn on or off testing of compression of the output of the CGI program
+which is being tested. Give any true value as the first argument to
+turn on compression testing. Give any false value to turn off
+compression testing.
+
+
+=head2 expect_charset
+
+    $tester->expect_charset ('UTF-8');
+
+Tell the tester to test whether the header and output have the correct
+character set.
+
+
+=head2 set_verbosity
+
+    $tester->set_verbosity (1);
+
+This turns on or off messages from the module informing you of what it
+is doing.
+
+
+=head2 run
+
+    my %options;
+    $options{query} = "q=rupert+the+bear";
+    $tester->run (\%options);
+
+Run the cgi executable specified using L<set_cgi_executable> with the
+inputs specified in C<%options>.
+
+=head3 Possible options
+
+=over
+
+=item die_on_failure
+
+If this is set to a true value, the program dies if a test fails. If
+this is set to a false value then the program does not die, regardless
+of whether tests fail or not.
+
+=item no_check_content
+
+If this is set to a true value, the program does not check the
+Content-Type line produced by the CGI. This option is for the case
+where the CGI produces, for example, a "Location: " response without a
+body.
+
+=item REQUEST_METHOD
+
+This option may be set to one of POST, GET and HEAD. If not set at
+all, the module sets it to a default and prints a warning message. The
+module then sets the environment variable REQUEST_METHOD to this
+value.
+
+=item QUERY_STRING
+
+This option sets the environment variable C<QUERY_STRING> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item CONTENT_TYPE
+
+The content type of the input. This is used when REQUEST_METHOD is
+POST. It is usually either C<application/x-www-form-urlencoded> or
+C<multipart/form-data>. C<application/x-www-form-urlencoded> is the
+default value for CGI form queries.
+
+=item HTTP_COOKIE
+
+This option sets the environment variable C<HTTP_COOKIE> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item REMOTE_ADDR
+
+This option sets the environment variable C<REMOTE_ADDR> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item input
+
+Input to send to the CGI program with a POST request.
+
+=back
+
+=head3 Outputs
+
+The outputs are put into C<%options>
+
+=over
+
+=item body
+
+The body of the CGI output, after uncompression.
+
+=item header
+
+The header of the CGI output.
+
+=item exit_code
+
+The exit value of the CGI.
+
+=back
+
+
+=head1 DEPENDENCIES
+
+This module depends on
+
+=over
+
+=item L<IO::Uncompress::Gunzip>
+
+IO::Uncompress::Gunzip is used to test for correct decompression.
+
+=item L<IPC::Run3>
+
+IPC::Run3 is used to run the CGI.
+
+=item L<Carp>
+
+Carp is used to print error messages.
+
+=back
+
+=head1 AUTHOR
+
+Ben Bullock, <bkb@cpan.org>
+
+=head1 COPYRIGHT
+
+Perl module Test::CGI::External and associated files may be used,
+copied, modified and distributed under the same terms as the Perl 5
+programming language itself, either the Artistic Licence or the GNU
+General Public Licence.

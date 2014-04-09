@@ -1,16 +1,22 @@
 #!/usr/bin/env perl
 
+# This is a deliberately-misbehaving CGI script, the "bad boy" of CGI
+# scripting. The bad behaviour is controllable by command-line options
+# (an undocumented feature of Test::CGI::External).
+
 use warnings;
 use strict;
 use FindBin;
 use Getopt::Long;
+
+# Get what kind of bad behaviour to exhibit
 
 GetOptions (
     # Stray garbage in header
     "header" => \my $header,
     # Don't print gzip header but print gzip contents
     "gzip" => \my $gzip,
-    # Print gzip but don't.
+    # Print a header indicating gzip but send uncompressed.
     "gzipheader" => \my $gzipheader,
     # Give a bad exit code
     "exit" => \my $exit,
@@ -39,19 +45,33 @@ if ($charset) {
 if (! $contenttype) {
     print "Content-Type: text/html$outputcharset\n";
 }
-if (! $gzip) {
-    print "Content-Encoding: gzip\n";
+if ($gzip) {
+    if (! $gzipheader) {
+	print "Content-Encoding: gzip\n";
+    }
 }
 print "\n";
-if ($gzipheader) {
+
+if (! $gzip) {
     print "Welcome to your web page\n";
 }
 else {
-    open my $in, "<:raw", "$FindBin::Bin/test.gz" or die $!;
-    while (<$in>) {
-	print;
+    if ($gzipheader) {
+	print "Welcome to your web page\n";
     }
-    close $in or die $!;
+    else {
+	open my $in, "<:raw", "$FindBin::Bin/test.gz" or die $!;
+	while (<$in>) {
+	    print;
+	}
+	close $in or die $!;
+    }
 }
-exit;
+
+if ($exit) {
+    exit (1);
+}
+else {
+    exit;
+}
 
