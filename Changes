@@ -1,6 +1,10 @@
 Revision history for perl module Test::CGI::External
 
-0.02 2014-04-09
+0.04 2014-04-16
+
+- Add tests for $tester->set_no_content_type (1)
+
+0.03 2014-04-09
 
 - Conversion to Test::Builder dependency
 

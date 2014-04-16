@@ -112,6 +112,14 @@ character set.
 This turns on or off messages from the module informing you of what it
 is doing.
 
+=head2 set_no_check_content
+
+    $tester->set_no_check_content (1);
+
+This turns off testing of the "Content-Type" HTTP header. For example
+if you want to send redirects or "not modified" responses, you usually
+will not send any content, but just the HTTP headers, so you don't
+need a "Content-Type" header.
 
 =head2 run
 
@@ -128,16 +136,16 @@ inputs specified in C<%options>.
 
 =item die_on_failure
 
-If this is set to a true value, the program dies if a test fails. If
-this is set to a false value then the program does not die, regardless
-of whether tests fail or not.
+If this is set to a true value, the module "dies" if any test
+fails. If this is set to a false value then the program does not die,
+regardless of whether tests fail or not.
 
 =item no_check_content
 
-If this is set to a true value, the program does not check the
-Content-Type line produced by the CGI. This option is for the case
-where the CGI produces, for example, a "Location: " response without a
-body.
+If this is set to a true value, the program does not check for the
+"Content-Type" header line produced by the CGI. This option is for the
+case where the CGI produces, for example, a "Location: " response
+without a body. See also the L</set_no_check_content> method.
 
 =item REQUEST_METHOD
 

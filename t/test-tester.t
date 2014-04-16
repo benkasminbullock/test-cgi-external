@@ -13,7 +13,6 @@ my $tester = Test::CGI::External->new ();
 my %options;
 
 $options{REQUEST_METHOD} = 'GET';
-
 my ($premature, @results) = run_tests (
     sub {
 	$tester->set_cgi_executable (
@@ -200,5 +199,44 @@ for (@results) {
 	ok ($_->{ok}, "passed test '$_->{name}'");
     }
 }
+$tester->do_compression_test (undef);
+
+($premature, @results) = run_tests (
+    sub {
+	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
+				     '--contenttype');
+    }
+);
+($premature, @results) = run_tests (
+    sub {
+	$tester->run (\%options);
+    }
+);
+ok (! $premature, "no premature diagnostics");
+for (@results) {
+    if ($_->{name} =~ /Content-Type/) {
+	ok (! $_->{ok}, "complained about Content-Type header");
+    }
+    else {
+	ok ($_->{ok}, "passed test '$_->{name}'");
+    }
+}
+($premature, @results) = run_tests (
+    sub {
+	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
+				     ['--contenttype']);
+    }
+);
+($premature, @results) = run_tests (
+    sub {
+	$tester->run (\%options);
+    }
+);
+ok (! $premature, "no premature diagnostics");
+$tester->set_no_check_content (1);
+for (@results) {
+    ok ($_->{ok}, "passed test '$_->{name}'");
+}
+$tester->set_no_check_content (undef);
 
 done_testing ();

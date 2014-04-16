@@ -38,6 +38,7 @@ WriteMakefile1(
         'IPC::Run3' => 0,
         'IO::Uncompress::Gunzip' => 0,
 	'Test::Builder' => 0,
+	'Test::Tester' => '0.109',
     },
 );
 

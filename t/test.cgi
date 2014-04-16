@@ -45,6 +45,10 @@ if ($charset) {
 if (! $contenttype) {
     print "Content-Type: text/html$outputcharset\n";
 }
+else {
+    # Print a header so we don't trip other tests off.
+    print "Location: http://www.example.com\nStatus: 301 Ho Ho Ho\n";
+}
 if ($gzip) {
     if (! $gzipheader) {
 	print "Content-Encoding: gzip\n";
@@ -53,7 +57,12 @@ if ($gzip) {
 print "\n";
 
 if (! $gzip) {
-    print "Welcome to your web page\n";
+    if ($contenttype) {
+	print "What type might this be?\n";
+    }
+    else {
+	print "Welcome to your web page\n";
+    }
 }
 else {
     if ($gzipheader) {

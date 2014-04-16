@@ -11,7 +11,7 @@ use IPC::Run3;
 #use File::Temp 'tempfile';
 use Test::Builder;
 
-our $VERSION = '0.02';
+our $VERSION = '0.04';
 
 sub new
 {
