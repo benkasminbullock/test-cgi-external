@@ -67,7 +67,6 @@ exits with a zero status, or does not print error messages during
 normal operations.
 
 
-
 =head1 METHODS
 
 
@@ -84,8 +83,11 @@ Create a new testing object.
 
 Set the CGI program to be tested to 'my.cgi'. This checks whether the
 file exists and is executable, and prints a warning if either of these
-checks fails.
+checks fails. It's also possible to send command-line options to the
+program. Things after the name of the executable are sent as
+command-line options to the CGI program.
 
+    $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
 
 =head2 do_compression_test
 

@@ -1,5 +1,10 @@
 Revision history for perl module Test::CGI::External
 
+0.05 2014-05-07
+
+- Document the ability to add command line options.
+- Remove "-x" test for Windows.
+
 0.04 2014-04-16
 
 - Add tests for $tester->set_no_content_type (1)

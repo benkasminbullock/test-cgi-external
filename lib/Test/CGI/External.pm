@@ -11,7 +11,7 @@ use IPC::Run3;
 #use File::Temp 'tempfile';
 use Test::Builder;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 sub new
 {
@@ -38,11 +38,17 @@ sub set_cgi_executable
     else {
 	$self->pass_test ("found executable $cgi_executable");
     }
-    if (! -x $cgi_executable) {
-        $self->fail_test ("The CGI executable '$cgi_executable' exists but is not executable");
-    }
-    else {
-	$self->pass_test ("$cgi_executable is executable");
+    if ($^O ne 'MSWin32') {
+
+	# These tests don't do anything useful on Windows, see
+	# http://perldoc.perl.org/perlport.html#-X
+
+	if (! -x $cgi_executable) {
+	    $self->fail_test ("The CGI executable '$cgi_executable' exists but is not executable");
+	}
+	else {
+	    $self->pass_test ("$cgi_executable is executable");
+	}
     }
     $self->{cgi_executable} = $cgi_executable;
     if (@command_line_options) {
