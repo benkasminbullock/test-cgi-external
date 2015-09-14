@@ -5,6 +5,10 @@ use Test::More;
 use Test::CGI::External;
 use FindBin;
 
+if ($^O eq 'MSWin32') {
+    plan skip_all => "These tests not adapted for Microsoft Windows";
+}
+
 my $tester = Test::CGI::External->new ();
 
 # Test for "not found" error.
@@ -177,20 +181,21 @@ ok (! $premature, "no premature diagnostics");
 for (@results) {
     ok ($_->{ok}, "passed test '$_->{name}'");
 }
-
 ($premature, @results) = run_tests (
     sub {
 	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
-				     ['--gzip', '--gzipheader']);
+				     '--gzip', '--gzipheader');
 	$tester->do_compression_test (1);
     }
 );
+note ("biffo");
 ($premature, @results) = run_tests (
     sub {
 	$tester->run (\%options);
     }
 );
 ok (! $premature, "no premature diagnostics");
+note ("boffo");
 for (@results) {
     if ($_->{name} =~ /header indicating compression/) {
 	ok (! $_->{ok}, "complained about lack of gzip header");
@@ -213,6 +218,7 @@ $tester->do_compression_test (undef);
     }
 );
 ok (! $premature, "no premature diagnostics");
+
 for (@results) {
     if ($_->{name} =~ /Content-Type/) {
 	ok (! $_->{ok}, "complained about Content-Type header");
@@ -224,16 +230,16 @@ for (@results) {
 ($premature, @results) = run_tests (
     sub {
 	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
-				     ['--contenttype']);
+				     '--contenttype');
     }
 );
+$tester->set_no_check_content (1);
 ($premature, @results) = run_tests (
     sub {
 	$tester->run (\%options);
     }
 );
 ok (! $premature, "no premature diagnostics");
-$tester->set_no_check_content (1);
 for (@results) {
     ok ($_->{ok}, "passed test '$_->{name}'");
 }

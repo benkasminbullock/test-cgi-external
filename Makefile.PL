@@ -35,8 +35,7 @@ WriteMakefile1(
     VERSION_FROM => 'lib/Test/CGI/External.pm',
     PREREQ_PM => {
         'Test::More' => 0,
-        'IPC::Run3' => 0,
-        'IO::Uncompress::Gunzip' => 0,
+	'Gzip::Faster' => '0.08',
 	'Test::Builder' => 0,
 	'Test::Tester' => '0.109',
     },

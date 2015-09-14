@@ -185,6 +185,15 @@ test run.
 
 Input to send to the CGI program with a POST request.
 
+=item expect_errors
+
+Set to a true value if the program is expected to produce errors.
+
+=item html
+
+If set to a true value, validate the html using
+F<projects/html-validate/validate.go>.
+
 =back
 
 =head3 Outputs
@@ -207,20 +216,15 @@ The exit value of the CGI.
 
 =back
 
-
 =head1 DEPENDENCIES
 
 This module depends on
 
 =over
 
-=item L<IO::Uncompress::Gunzip>
+=item L<Gzip::Faster>
 
-IO::Uncompress::Gunzip is used to test for correct decompression.
-
-=item L<IPC::Run3>
-
-IPC::Run3 is used to run the CGI.
+It is used to do the compression testing.
 
 =item L<Carp>
 

@@ -1,5 +1,9 @@
 Revision history for perl module Test::CGI::External
 
+0.06 2014-05-08
+
+- Add meaningless pass result for "-x" test for Windows
+
 0.05 2014-05-07
 
 - Document the ability to add command line options.
