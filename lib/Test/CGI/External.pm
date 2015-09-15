@@ -10,6 +10,7 @@ use Gzip::Faster;
 use File::Temp 'tempfile';
 use Test::Builder;
 use FindBin '$Bin';
+use JSON::Parse 'valid_json';
 
 our $VERSION = '0.07';
 
@@ -225,10 +226,9 @@ sub run_private
         }
         setenv_private ($o, 'REMOTE_ADDR', $remote_addr);
     }
-    my $input;
     if (defined $options->{input}) {
         $o->{input} = $options->{input};
-        my $content_length = length ($input);
+        my $content_length = length ($o->{input});
         setenv_private ($o, 'CONTENT_LENGTH', $content_length);
         if ($verbose) {
 	    $o->{tb}->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n");
@@ -253,7 +253,7 @@ sub run_private
     }
     $o->run3 (\@cmd);
     $options->{output} = $o->{output};
-    $options->{errors} = $o->{errors};
+    $options->{error_output} = $o->{errors};
     if ($verbose) {
 	$o->{tb}->note (sprintf ("The program has now finished running. There were %d bytes of output.\n", length ($o->{output})));
     }
@@ -280,12 +280,12 @@ sub run_private
 	    $o->pass_test ("The CGI executable produced some output on the error stream as follows:\n$o->{errors}\n");
 	}
 	else {
-	    $o->fail_test ("The CGI executable did not produce any output on the error stream");
+	    $o->fail_test ("Expecting errors, but the CGI executable did not produce any output on the error stream");
 	}
     }
     else {
 	if ($o->{errors}) {
-	    $o->fail_test ("The CGI executable produced some output on the error stream as follows:\n$o->{errors}\n");
+	    $o->fail_test ("Not expecting errors, but the CGI executable produced some output on the error stream as follows:\n$o->{errors}\n");
 	}
 	else {
 	    $o->pass_test ("The CGI executable did not produce any output on the error stream");
@@ -539,6 +539,9 @@ sub run
     if ($options->{html}) {
 	validate_html ($self);
     }
+    if ($options->{json}) {
+	validate_json ($self);
+    }
     if ($options->{die_on_failure}) {
         if ($self->{failures} > 0) {
             croak "You have selected 'die on failure'. I am dying due to $self->{failures} failed tests.\n";
@@ -564,18 +567,23 @@ sub tidy_files
     unlink $o->{errfile} or die $!;
 }
 
+sub tfilename
+{
+    my $dir = "/tmp";
+    my $file = "$dir/temp.$$-" . scalar(time ()) . "-" . int (rand (10000));
+    return $file;
+}
+
 sub run3
 {
     my ($o, $exe) = @_;
     my $cmd = "@$exe";
-    my $infile;
     if (defined $o->{input}) {
-	my $in;
-	($in, $o->{infile}) = tempfile ("/tmp/input-XXXXXX");
-	binmode $in, ":raw";
+	$o->{infile} = tfilename ();
+	open my $in, ">:raw", $o->{infile} or die $!;
 	print $in $o->{input};
 	close $in or die $!;
-	$cmd .= " < $infile";
+	$cmd .= " < " . $o->{infile};
     }
     my $out;
     ($out, $o->{outfile}) = tempfile ("/tmp/output-XXXXXX");
@@ -624,7 +632,7 @@ sub validate_html
 	$o->fail_test ("HTML is valid");
 	open my $in, "<", $html_validate or die $!;
 	while (<$in>) {
-	    note ($_);
+	    print ($_);
 	}
 	close $in or die $!;
     }
@@ -633,8 +641,20 @@ sub validate_html
     }
     unlink $html_temp_file or die $!;
     if (-f $html_validate) {
-
 	unlink $html_validate or die $!;
+    }
+}
+
+sub validate_json
+{
+    my ($o) = @_;
+    my $json = $o->{run_options}->{body};
+    my $valid = valid_json ($json);
+    if ($valid) {
+	$o->pass_test ("Valid JSON");
+    }
+    else {
+	$o->fail_test ("Valid JSON");
     }
 }
 
