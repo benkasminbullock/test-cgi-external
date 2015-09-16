@@ -122,12 +122,7 @@ sub check_request_method
 sub pass_test
 {
     my ($self, $test) = @_;
-    $self->{successes} += 1;
-    $self->{tests} += 1;
-
     $self->{tb}->ok (1, $test);
-
-#    print "ok $self->{tests} - $test.\n";
 }
 
 # Fail a test and keep going.
@@ -135,12 +130,7 @@ sub pass_test
 sub fail_test
 {
     my ($self, $test) = @_;
-    $self->{failures} += 1;
-    $self->{tests} += 1;
-
     $self->{tb}->ok (0, $test);
-
-#    print "not ok $self->{tests} - $test.\n";
 }
 
 # Print the TAP plan
@@ -149,7 +139,6 @@ sub plan
 {
     my ($self) = @_;
     $self->{tb}->done_testing ();
-    #print "1..$self->{tests}\n";
 }
 
 # Fail a test which means that we cannot keep going.
