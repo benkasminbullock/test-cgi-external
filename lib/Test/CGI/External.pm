@@ -454,7 +454,7 @@ sub check_compression_private
         print "# I am testing whether compression has been applied to the output.\n";
     }
     if ($header !~ /Content-Encoding:.*\bgzip\b/i) {
-        $o->fail_test ("Output '$header' does not have a header indicating compression");
+        $o->fail_test ("Output does not have a header indicating compression");
     }
     else {
         $o->pass_test ("The header claims that the output is compressed");
