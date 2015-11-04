@@ -298,6 +298,25 @@ This should be upgraded into Unicode using the character encoding
 specified with L</expect_charset>, but it isn't at the moment. See
 also L</BUGS>.
 
+=item content_length
+
+The content length of your input in bytes, if you are making a C<POST>
+request. Note that this is the length in bytes, so it may differ from
+the return value of Perl's length function.
+
+[% INCLUDE "length.pl" %]
+
+=item error_output
+
+    my %options;
+    $test->run (\%options);
+    my $error_output = $options{error_output};
+
+Any errors output by the CGI program. This is an empty string if there
+were no errors. If you are expecting to get error messages, remember
+to set L</expect_errors>, otherwise any error output at all will cause
+a test to fail.
+
 =item exit_code
 
     my %options;
@@ -409,22 +428,31 @@ This module depends on
 
 Carp is used to print error messages.
 
+=item L<Encode>
+
+Encode is used for converting non-UTF-8 encodings into Unicode.
+
 =item L<Gzip::Faster>
 
 It is used to do the compression testing.
-
-=item L<JSON::Parse>
-
-JSON::Parse is used to test JSON for validity.
 
 =item L<File::Temp>
 
 File::Temp is used for the temporary files which store the input,
 output, and error stream of the CGI program.
 
+=item L<JSON::Parse>
+
+JSON::Parse is used to test JSON for validity.
+
 =item L<Test::Builder>
 
 For testing framework.
+
+=item L<Unicode::UTF8>
+
+Unicode::UTF8 is used for converting UTF-8 encodings into Perl's
+internal Unicode.
 
 =back
 

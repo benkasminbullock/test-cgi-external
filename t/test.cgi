@@ -1,8 +1,7 @@
 #!/usr/bin/env perl
 
 # This is a deliberately-misbehaving CGI script, the "bad boy" of CGI
-# scripting. The bad behaviour is controllable by command-line options
-# (an undocumented feature of Test::CGI::External).
+# scripting. The bad behaviour is controllable by command-line options.
 
 use warnings;
 use strict;

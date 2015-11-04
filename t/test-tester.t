@@ -135,6 +135,9 @@ for (@results) {
     if ($_->{name} =~ /charset/) {
 	ok (! $_->{ok}, "'$_->{name}' - empty charset causes failure");
     }
+    elsif ($_->{name} =~ /decoded from EUC-JP encoding/) {
+	ok (! $_->{ok}, "Cannot decode from bogus EUC-JP encoding");
+    }
     else {
 	ok ($_->{ok}, "passed test '$_->{name}'");
     }

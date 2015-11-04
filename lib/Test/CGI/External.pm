@@ -11,6 +11,9 @@ use File::Temp 'tempfile';
 use Test::Builder;
 use FindBin '$Bin';
 use JSON::Parse 'valid_json';
+use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
+use Encode 'decode';
+use utf8;
 
 our $VERSION = '0.07';
 
@@ -218,11 +221,15 @@ sub run_private
     }
     if (defined $options->{input}) {
         $o->{input} = $options->{input};
+	if (utf8::is_utf8 ($o->{input})) {
+	    $o->{input} = encode_utf8 ($o->{input});
+	}
         my $content_length = length ($o->{input});
         setenv_private ($o, 'CONTENT_LENGTH', $content_length);
         if ($verbose) {
 	    $o->{tb}->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n");
         }
+	$options->{content_length} = $content_length;
     }
 
     if ($comp_test) {
@@ -498,6 +505,7 @@ sub set_no_check_content
 sub run
 {
     my ($self, $options) = @_;
+    my $verbose = $self->{verbose};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
     if (! $self->{cgi_executable}) {
         croak "You have requested me to run a CGI executable with 'run' without telling me what it is you want me to run. Please tell me the name of the CGI executable using the method 'set_cgi_executable'.";
@@ -524,6 +532,29 @@ sub run
 	check_headers_private ($self);
 	if ($self->{comp_test}) {
 	    check_compression_private ($self);
+	}
+	my $ecs = $self->{expected_charset};
+	if ($ecs) {
+	    if ($ecs =~ /utf\-?8/i) {
+		if ($verbose) {
+		    print ("# Expected charset '$ecs' looks like UTF-8, sending it to Unicode::UTF8.\n");
+		}
+		$options->{body} = decode_utf8 ($options->{body});
+	    }
+	    else {
+		if ($verbose) {
+		    print ("# Expected charset '$ecs' doesn't look like UTF-8, sending it to Encode.\n");
+		}
+		eval {
+		    $options->{body} = decode ($options->{body}, $ecs);
+		};
+		if (! $@) {
+		    $self->pass_test ("decoded from $ecs encoding");
+		}
+		else {
+		    $self->fail_test ("decoded from $ecs encoding");
+		}
+	    }
 	}
     }
     if ($options->{html}) {

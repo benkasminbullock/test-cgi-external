@@ -8,3 +8,7 @@ MYMETA..*
 .*\.bak
 ^Test-CGI-External-[0-9\.]+/$
 ^Test-CGI-External-[0-9\.]+\.tar\.gz$
+# Output of the example programs
+^examples/.*\-out\.txt$
+^make-pod\.pl$
+^lib/Test/CGI/External\.pod\.tmpl$

@@ -39,6 +39,9 @@ WriteMakefile1(
 	'Test::Builder' => 0,
 	'Test::Tester' => '0.109',
 	'JSON::Parse' => '0.38',
+	# Added as the latest version, earlier ones may also be
+	# compatible.
+	'Unicode::UTF8' => '0.60',
     },
 );
 
