@@ -1,0 +1,438 @@
+=head1 NAME
+
+Test::CGI::External - run tests on an external CGI program
+
+=head1 SYNOPSIS
+
+    use Test::More;
+    use Test::CGI::External;
+
+    my $tester = Test::CGI::External->new ();
+
+    $tester->set_cgi_executable ("x.cgi");
+
+    my %options;
+
+    # Automatically tests
+
+    $tester->run (\%options);
+
+    # Test with a query
+
+    $options{REQUEST_METHOD} = 'GET';
+    $options{QUERY_STRING} = 'text="alcohol"';
+    $tester->run (\%options);
+
+    # Test compression of output
+
+    $tester->do_compression_test (1);
+    $tester->run (\%options);
+
+    # Print the plan.
+
+    $tester->plan ();
+
+    done_testing ();
+
+After the test has run, the uncompressed output is in
+C<$options{body}>.
+
+=head1 DESCRIPTION
+
+Test::CGI::External is a tool for running basic checks of the
+operation of a CGI (common gateway interface) program. It is meant to
+be used for "sanity checks" of CGI program operation. For example, if
+a CGI program prints stuff on standard output before it prints its
+HTTP headers, when running from behind a server, the only output
+visible from a browser is an obscure server error message.
+
+In a Perl script,
+
+    use Test::More;
+    my $tester = Test::CGI::External->new ();
+    $tester->set_cgi_executable ('example.cgi');
+    $tester->run ({});
+    done_testing ();
+
+The above tests whether
+
+=over
+
+=item * there is a program called F<example.cgi>
+
+=item * the program F<example.cgi> is executable (except on Windows)
+
+=item * when run, F<example.cgi> produces a correct C<Content-Type> header
+
+=item * when run, F<example.cgi> does not print out ill-formed headers (for example, print
+debugging messages on standard output)
+
+=item * when run, F<example.cgi> exits with a zero status
+
+=item * when run, F<example.cgi> does not print any error messages
+
+=back
+
+In other words, this tests for extremely simple "slip-up" mistakes and
+basic program execution.
+
+Test::CGI::External runs CGI programs as stand-alone programs, under a
+faked CGI-like environment created by manipulating environment
+variables. Thus it does not require a web server.  The tested CGI
+program can be in any language, not just Perl; Test::CGI::External is
+meant to test external programs which are completely independent of
+itself. Test::CGI::External was originally created to check the
+operation of CGI programs written in C.
+
+Test::CGI::External is meant for the testing stage before the program
+is put onto a web server. One of the main errors this module catches
+for the author is stray printf statements. If a program with stray
+printf statements is uploaded to the web server and run as a CGI
+program, the browser will show only a 500 Server Error
+message. Another typical mistake is forgetting to make the CGI program
+executable; again, this results in a weird server error.
+
+Test::CGI::External is TAP (Test Anything Protocol)-compliant and
+should work with Perl testing modules like L<Test::More>.
+
+=head1 METHODS
+
+=head2 do_compression_test
+
+    $tester->do_compression_test (1);
+
+Turn on or off testing of compression of the output of the CGI program
+which is being tested. Give any true value as the first argument to
+turn on compression testing. Give any false value to turn off
+compression testing. Tests are done via L<Gzip::Faster>.
+
+=head2 expect_charset
+
+    $tester->expect_charset ('UTF-8');
+
+Tell the tester to test whether the header declares the output
+character set correctly.
+
+This should also upgrade the contents of the body into Unicode, but it
+doesn't currently do that. See also L</BUGS>.
+
+=head2 new
+
+    my $tester = Test::CGI::External->new ();
+
+Create a new testing object.
+
+=head2 plan
+
+Print the TAP (Test Anything Protocol) plan. This has to be done at
+the end of the execution.
+
+=head2 run
+
+    my %options;
+    $options{QUERY_STRING} = "q=rupert+the+bear";
+    $tester->run (\%options);
+
+Run the cgi executable specified using L<set_cgi_executable> with the
+inputs specified in C<%options>. See L</Possible options> for possible
+options. See L</Outputs> for outputs.
+
+=head2 set_cgi_executable
+
+    $tester->set_cgi_executable ('my.cgi');
+
+Set the CGI program to be tested to 'my.cgi'. This checks whether the
+file exists and is executable, and prints a warning if either of these
+checks fails. It's also possible to send command-line options to the
+program. Things after the name of the executable are sent as
+command-line options to the CGI program.
+
+    $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
+
+=head2 set_verbosity
+
+    $tester->set_verbosity (1);
+
+This turns on or off messages from the module informing you of what it
+is doing.
+
+=head2 set_no_check_content
+
+    $tester->set_no_check_content (1);
+
+This turns off testing of the "Content-Type" HTTP header. For example
+if you want to send redirects or "not modified" responses, you usually
+will not send any content, but just the HTTP headers, so you don't
+need a "Content-Type" header.
+
+=head1 INPUT AND OUTPUT
+
+=head2 Possible options
+
+The following values may be set in the argument to L</run>,
+C<%options>.
+
+=over
+
+=item CONTENT_TYPE
+
+     $options{CONTENT_TYPE} = 'GET';
+     $test->run (\%options);
+
+The content type of the input. This is used when REQUEST_METHOD is
+POST. It is usually either C<application/x-www-form-urlencoded> or
+C<multipart/form-data>. C<application/x-www-form-urlencoded> is the
+default value for CGI form queries.
+
+=item die_on_failure
+
+     $options{die_on_failure} = 1;
+     $test->run (\%options);
+
+If this is set to a true value, the module "dies" if any test
+fails. If this is set to a false value then the program does not die,
+regardless of whether tests fail or not.
+
+=item expect_errors
+
+     $options{expect_errors} = 1;
+     $test->run (\%options);
+
+Set to a true value if the program is expected to produce errors. In
+other words, this switches off the test that errors are not printed.
+
+=item html
+
+     $options{html} = 1;
+     $test->run (\%options);
+
+If set to a true value, validate the html using
+F<projects/html-validate/validate.go>. See L</BUGS>.
+
+=item HTTP_COOKIE
+
+     $options{HTTP_COOKIE} = 'nice=day';
+     $test->run (\%options);
+
+This option sets the environment variable C<HTTP_COOKIE> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item input
+
+     $options{input} = $post_input;
+     $test->run (\%options);
+
+Input to send to the CGI program with a POST request. The environment
+variable CONTENT_LENGTH in the CGI program is automatically set to the
+length of this variable. See also L</BUGS>.
+
+=item json
+
+     $options{json} = 1;
+     $test->run (\%options);
+
+Validate the body of the output as JSON using L<JSON::Parse>. This is
+run after decompression.
+
+=item no_check_content
+
+     $options{no_check_content} = 1;
+     $test->run (\%options);
+
+If this is set to a true value, the program does not check for the
+"Content-Type" header line produced by the CGI. This option is for the
+case where the CGI produces, for example, a "Location: " response
+without a body. See also the L</set_no_check_content> method.
+
+=item QUERY_STRING
+
+     $options{QUERY_STRING} = "word=babies";
+     $test->run (\%options);
+
+This option sets the environment variable C<QUERY_STRING> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item REMOTE_ADDR
+
+     $options{QUERY_STRING} = "127.0.0.1";
+     $test->run (\%options);
+
+This option sets the environment variable C<REMOTE_ADDR> to whatever
+its value is. The environment variable is then unset at the end of the
+test run.
+
+=item REQUEST_METHOD
+
+     $options{REQUEST_METHOD} = "GET";
+     $test->run (\%options);
+
+This option may be set to one of POST, GET and HEAD. The module then
+sets the environment variable REQUEST_METHOD to this value. If not set
+at all, the module sets it to a default and prints a warning
+message. You can also set this to any other value you want, like
+C<OPTIONS> or something, but the module prints a warning
+message. There is currently no way to switch off the warnings. See
+also L</BUGS>.
+
+=back
+
+=head2 Outputs
+
+The various outputs of the CGI program are also put into C<%options>.
+
+=over
+
+=item body
+
+    my %options;
+    $test->run (\%options);
+    my $body = $options{body};
+
+The body of the CGI output, the part after the headers. If you have
+requested compression testing with L</do_compression_test>, this will
+be the output after uncompression.
+
+This should be upgraded into Unicode using the character encoding
+specified with L</expect_charset>, but it isn't at the moment. See
+also L</BUGS>.
+
+=item exit_code
+
+    my %options;
+    $test->run (\%options);
+    my $exit_code = $options{exit_code};
+
+The exit value of the CGI program, the value of C<$status> in 
+
+    $status = system ('example.cgi');
+
+=item header
+
+    my %options;
+    $test->run (\%options);
+    my $header = $options{header};
+
+The header part of the CGI output. This is split from L</output>.
+
+=item output
+
+    my %options;
+    $test->run (\%options);
+    my $output = $options{output};
+
+The entire output of the CGI program, unprocessed. If you have
+requested compression testing with L</do_compression_test>, this will
+contain binary compressed data.
+
+=back
+
+=head1 BUGS
+
+There is little support for encodings other than UTF-8.
+
+The C<body> part of the output is not upgraded to UTF-8, and this
+behaviour is not fully documented. At the moment I have a few
+dependencies on the bad behaviour so this requires a cleanup.
+
+This assumes line endings are C<\n> in some places. There may be
+problems with C<\r\n> support.
+
+The html validator mentioned above is a private program. This module
+was removed from CPAN and this was added when the whole module was
+"privatized".
+
+The tests use the internals of Test::Builder, and the pass/fail test
+messages are somewhat disorganized.
+
+The test contents are not documented.
+
+The mixture of methods (see L</METHODS>) and options (see L</Possible
+options>) is somewhat messy.
+
+There are too many warnings which cannot be switched off, e.g. the
+request method warnings.
+
+The examples in this documentation are not machine-readable, and thus
+probably contain many errors. (L<JSON::Create> is an example of a
+module with documentation I think is good, because it's all extracted
+from actual example programs, which are test-run during the build.)
+
+Internally, GATEWAY_INTERFACE is set to "CGI/1.1", with no way for the
+user to change things.
+
+The module has very few tests.
+
+There is no way to test for caching behaviour (304 responses, last
+modified responses).
+
+No check for MD5 checksums. For completeness, there probably should be a check for this.
+
+Not adapted for Microsoft Windows.
+
+C<CONTENT_LENGTH> is set from C<length ($input)>, so it may be broken
+for utf8 strings.
+
+=head1 SEE ALSO
+
+=over
+
+=item Specification of the Common Gateway Interface
+
+The current specification of the Common Gateway Interface is RFC
+(Request For Comments) 3875 by D. Robinson and K. Coar of The Apache
+Software Foundation, dated October 2004. See
+L<http://www.ietf.org/rfc/rfc3875>.
+
+=item Specification for HTTP headers
+
+This module's check for HTTP headers was written against the
+specification on pages 15 and 16 of RFC 2616 by R. Fielding et al,
+dated June 1999. See L<http://www.ietf.org/rfc/rfc2616.txt>.
+
+=item L<The Common Gateway Interface|http://www.lemoda.net/cgi/simple-guide/index.html>
+
+This is my own web page which explains some things about CGI. (The
+strange design is because I used this as a test page for responsive
+web design class.)
+
+=back
+
+=head1 DEPENDENCIES
+
+This module depends on
+
+=over
+
+=item L<Carp>
+
+Carp is used to print error messages.
+
+=item L<Gzip::Faster>
+
+It is used to do the compression testing.
+
+=item L<JSON::Parse>
+
+JSON::Parse is used to test JSON for validity.
+
+=item L<File::Temp>
+
+File::Temp is used for the temporary files which store the input,
+output, and error stream of the CGI program.
+
+=item L<Test::Builder>
+
+For testing framework.
+
+=back
+
+The module also used to depend on L<IPC::Run3>, but there were some
+issues with this module messing around with the global variables. It
+does something like C<binmode STDOUT>, which interferes with other
+parts of the program, so that had to be removed.
+
+[% start_year='2011' %]
+[% INCLUDE "author" %]
+[% INCLUDE "terminology" %]

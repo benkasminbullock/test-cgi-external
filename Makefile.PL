@@ -38,6 +38,7 @@ WriteMakefile1(
 	'Gzip::Faster' => '0.08',
 	'Test::Builder' => 0,
 	'Test::Tester' => '0.109',
+	'JSON::Parse' => '0.38',
     },
 );
 

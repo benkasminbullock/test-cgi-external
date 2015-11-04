@@ -98,13 +98,14 @@ sub set_verbosity
     }
 }
 
+my @request_method_list = qw/POST GET HEAD/;
+my %valid_request_method = map {$_ => 1} @request_method_list;
+
 sub check_request_method
 {
     my ($request_method) = @_;
     my $default_request_method = 'GET';
     if ($request_method) {
-        my @request_method_list = qw/POST GET HEAD/;
-        my %valid_request_method = map {$_ => 1} @request_method_list;
         if ($request_method && ! $valid_request_method{$request_method}) {
             carp "You have set the request method to a value '$request_method' which is not one of the ones I know about, which are ", join (', ', @request_method_list), " so I am setting it to the default, '$default_request_method'";
             $request_method = $default_request_method;
