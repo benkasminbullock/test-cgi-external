@@ -2,6 +2,11 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
+if ($^0 =~ /mswin32/i) {
+    print "Sorry but this doesn't work on Windows. Patches welcome.\n";
+    exit;
+}
+
 my $pm = 'lib/Test/CGI/External.pm';
 my $pod = 'lib/Test/CGI/External.pod';
 my $github = 'github.com/benkasminbullock/test-cgi-external';
@@ -34,13 +39,15 @@ WriteMakefile1(
     NAME => 'Test::CGI::External',
     VERSION_FROM => 'lib/Test/CGI/External.pm',
     PREREQ_PM => {
-        'Test::More' => 0,
+	# Added the latest versions, earlier ones may also be
+	# compatible.
+	'Encode' => 0,
 	'Gzip::Faster' => '0.08',
+	'HTTP::Date' => '6.02',
+	'JSON::Parse' => '0.38',
 	'Test::Builder' => 0,
 	'Test::Tester' => '0.109',
-	'JSON::Parse' => '0.38',
-	# Added as the latest version, earlier ones may also be
-	# compatible.
+        'Test::More' => 0,
 	'Unicode::UTF8' => '0.60',
     },
 );

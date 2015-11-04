@@ -5,15 +5,17 @@ require Exporter;
 @EXPORT_OK = qw//;
 use warnings;
 use strict;
-use Carp;
-use Gzip::Faster;
-use File::Temp 'tempfile';
-use Test::Builder;
-use FindBin '$Bin';
-use JSON::Parse 'valid_json';
-use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
-use Encode 'decode';
 use utf8;
+
+use Carp;
+use Encode 'decode';
+use File::Temp 'tempfile';
+use FindBin '$Bin';
+use Gzip::Faster;
+use HTTP::Date;
+use JSON::Parse 'valid_json';
+use Test::Builder;
+use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
 
 our $VERSION = '0.07';
 
@@ -83,6 +85,12 @@ sub do_compression_test
     $self->{comp_test} = $switch;
 }
 
+sub do_caching_test
+{
+    my ($self, $onoff) = @_;
+    $self->{cache_test} = $onoff;
+}
+
 sub expect_charset
 {
     my ($self, $charset) = @_;
@@ -99,6 +107,52 @@ sub set_verbosity
     if ($self->{verbose}) {
         $self->{tb}->note ("# You have asked ", __PACKAGE__, " to print messages as it works.\n");
     }
+}
+
+sub test_if_modified_since
+{
+    my ($o, $last_modified) = @_;
+    die unless defined $last_modified;
+    my $saved = $ENV{HTTP_IF_MODIFIED_SINCE};
+    $ENV{HTTP_IF_MODIFIED_SINCE} = $last_modified;
+    # Copy the hash of options into a private copy, so that we can run
+    # the thing again without overwriting our precious stuff.
+    my $saved_run_options = $o->{run_options};
+    my %run_options = %$saved_run_options;
+    $o->{run_options} = \%run_options;
+    my $saved_no_warn = $o->{no_warn};
+    $o->{no_warn} = 1;
+    run_private ($o);
+    $o->check_headers_private ($o);
+    my $headers = $run_options{headers};
+    # Restore this to whatever it was, probably "undef".
+    $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
+    # Restore our precious stuff.
+    $o->{run_options} = $saved_run_options;
+    $o->{no_warn} = $saved_no_warn;
+}
+
+sub check_caching_private
+{
+    my ($self) = @_;
+    my $output = $self->{run_options};
+    my $headers = $output->{headers};
+    if (! $headers) {
+	die "There are no headers in object, did the tests really run?";
+    }
+    my $last_modified = $headers->{'last-modified'};
+    $self->do_test ($last_modified, "Has last modified header");
+#    for my $k (keys %$headers) {
+#	print "$k $headers->{$k}\n";
+#    }
+    my $time = str2time ($last_modified);
+    $self->do_test (defined $time, "Last modified time can be parsed by HTTP::Date");
+    if ($last_modified) {
+	$self->test_if_modified_since ($last_modified);
+    }
+    # Restore the headers because they were overwritten when we did
+    # the caching test.
+    $output->{headers} = $headers;
 }
 
 my @request_method_list = qw/POST GET HEAD/;
@@ -119,6 +173,12 @@ sub check_request_method
         $request_method = $default_request_method;
     }
     return $request_method;
+}
+
+sub do_test
+{
+    my ($self, $test, $message) = @_;
+    $self->{tb}->ok ($test, $message);
 }
 
 # Register a successful test
@@ -163,7 +223,9 @@ sub setenv_private
         push @{$o->{set_env}}, $name;
     }
     if ($ENV{$name}) {
-        carp "A variable '$name' is already set in the environment.\n";
+	if (! $o->{no_warn}) {
+	    carp "A variable '$name' is already set in the environment.\n";
+	}
     }
     $ENV{$name} = $value;
 }
@@ -185,7 +247,7 @@ sub run_private
     # the options the user has given.
 
     # mwforum requires GATEWAY_INTERFACE to be set to CGI/1.1
-    setenv_private ($o, 'GATEWAY_INTERFACE', 'CGI/1.1');
+    #    setenv_private ($o, 'GATEWAY_INTERFACE', 'CGI/1.1');
 
     my $query_string = $options->{QUERY_STRING};
     if (defined $query_string) {
@@ -402,7 +464,8 @@ sub check_http_header_syntax_private
     my @lines = split /\r?\n/, $header;
     my $line_number = 0;
     my $bad_headers = 0;
-    my $line_re = qr/$HTTP_TOKEN+:$HTTP_LWS+/;
+    my %headers;
+    my $line_re = qr/($HTTP_TOKEN+):$HTTP_LWS+(.*)/;
 #    print "Line regex is $line_re\n";
     for my $line (@lines) {
         if ($line =~ /^$/) {
@@ -421,12 +484,16 @@ sub check_http_header_syntax_private
             $bad_headers++;
         }
         else {
+	    my $key = lc $1;
+	    my $value = $2;
+	    $headers{$key} = $value;
             $o->pass_test ("The header on line $line_number, '$line', appears to be a correctly-formed HTTP header");
         }
     }
     if ($verbose) {
         print "# I have finished checking the HTTP header for consistency.\n";
     }
+    $o->{run_options}{headers} = \%headers;
 }
 
 # Check whether the headers of the CGI output are well-formed.
@@ -556,6 +623,9 @@ sub run
 		}
 	    }
 	}
+	if ($self->{cache_test}) {
+	    $self->check_caching_private ();
+	}
     }
     if ($options->{html}) {
 	validate_html ($self);
@@ -644,7 +714,7 @@ sub validate_html
     my ($o) = @_;
     my $html_validate = "$Bin/html-validate-temp-out.$$";
     my $html_temp_file = "$Bin/html-validate-temp.$$.html";
-    open my $htmltovalidate, ">", $html_temp_file or die $!;
+    open my $htmltovalidate, ">:encoding(utf8)", $html_temp_file or die $!;
     print $htmltovalidate $o->{run_options}->{body};
     close $htmltovalidate or die $!;
     my $status = system ("/home/ben/bin/validate $html_temp_file > $html_validate");

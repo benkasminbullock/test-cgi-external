@@ -1,3 +1,5 @@
+=encoding UTF-8
+
 =head1 NAME
 
 Test::CGI::External - run tests on an external CGI program
@@ -106,15 +108,27 @@ which is being tested. Give any true value as the first argument to
 turn on compression testing. Give any false value to turn off
 compression testing. Tests are done via L<Gzip::Faster>.
 
+Prior to version 0.07 of this module, these tests were done by
+L<IO::Uncompress::Gunzip>.
+
 =head2 expect_charset
 
     $tester->expect_charset ('UTF-8');
 
 Tell the tester to test whether the header declares the output
-character set correctly.
+character set correctly. 
 
-This should also upgrade the contents of the body into Unicode, but it
-doesn't currently do that. See also L</BUGS>.
+If you set expect charset, then the body of the output is upgraded
+from that encoding into Perl's Unicode encoding, C<utf8>. Unless the
+encoding is UTF-8, that upgrading is also added as a pass or fail
+test:
+
+    $tester->expect_charset ('EUC-JP');
+
+adds a test for decoding from the EUC-JP encoding.  
+
+This behaviour is new in version 0.08 of this module. Prior to version
+0.08, C<$output{body}> was not upgraded to C<utf8>.
 
 =head2 new
 
@@ -125,7 +139,9 @@ Create a new testing object.
 =head2 plan
 
 Print the TAP (Test Anything Protocol) plan. This has to be done at
-the end of the execution.
+the end of the execution. You usually don't have to print this but can
+use "done_testing" from L<Test::More> since this module uses
+L<Test::Builder> internally.
 
 =head2 run
 
@@ -133,7 +149,7 @@ the end of the execution.
     $options{QUERY_STRING} = "q=rupert+the+bear";
     $tester->run (\%options);
 
-Run the cgi executable specified using L<set_cgi_executable> with the
+Run the cgi executable specified using L</set_cgi_executable> with the
 inputs specified in C<%options>. See L</Possible options> for possible
 options. See L</Outputs> for outputs.
 
@@ -141,7 +157,7 @@ options. See L</Outputs> for outputs.
 
     $tester->set_cgi_executable ('my.cgi');
 
-Set the CGI program to be tested to 'my.cgi'. This checks whether the
+Set the CGI program to be tested to F<my.cgi>. This checks whether the
 file exists and is executable, and prints a warning if either of these
 checks fails. It's also possible to send command-line options to the
 program. Things after the name of the executable are sent as
@@ -304,7 +320,7 @@ The content length of your input in bytes, if you are making a C<POST>
 request. Note that this is the length in bytes, so it may differ from
 the return value of Perl's length function.
 
-[% INCLUDE "length.pl" %]
+[% INCLUDE "length.pl" | xtidy %]
 
 =item error_output
 
@@ -319,7 +335,6 @@ a test to fail.
 
 =item exit_code
 
-    my %options;
     $test->run (\%options);
     my $exit_code = $options{exit_code};
 
@@ -329,15 +344,23 @@ The exit value of the CGI program, the value of C<$status> in
 
 =item header
 
-    my %options;
     $test->run (\%options);
     my $header = $options{header};
 
 The header part of the CGI output. This is split from L</output>.
 
+=item headers
+
+    $test->run (\%options);
+    my $headers = $options{headers};
+    print $headers->{'content-type'};
+
+The received headers, parsed and put into lower case, with the
+key/value pairs of the hash reference C<$headers> the keys and values
+from the HTTP header.
+
 =item output
 
-    my %options;
     $test->run (\%options);
     my $output = $options{output};
 
@@ -348,12 +371,6 @@ contain binary compressed data.
 =back
 
 =head1 BUGS
-
-There is little support for encodings other than UTF-8.
-
-The C<body> part of the output is not upgraded to UTF-8, and this
-behaviour is not fully documented. At the moment I have a few
-dependencies on the bad behaviour so this requires a cleanup.
 
 This assumes line endings are C<\n> in some places. There may be
 problems with C<\r\n> support.
@@ -378,13 +395,7 @@ probably contain many errors. (L<JSON::Create> is an example of a
 module with documentation I think is good, because it's all extracted
 from actual example programs, which are test-run during the build.)
 
-Internally, GATEWAY_INTERFACE is set to "CGI/1.1", with no way for the
-user to change things.
-
 The module has very few tests.
-
-There is no way to test for caching behaviour (304 responses, last
-modified responses).
 
 No check for MD5 checksums. For completeness, there probably should be a check for this.
 
@@ -440,6 +451,10 @@ It is used to do the compression testing.
 
 File::Temp is used for the temporary files which store the input,
 output, and error stream of the CGI program.
+
+=item L<HTTP::Date>
+
+HTTP::Date is used to check the dates, if you check caching.
 
 =item L<JSON::Parse>
 

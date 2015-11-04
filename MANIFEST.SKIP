@@ -12,3 +12,5 @@ MYMETA..*
 ^examples/.*\-out\.txt$
 ^make-pod\.pl$
 ^lib/Test/CGI/External\.pod\.tmpl$
+# Internal file.
+^USERS$
