@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use ExtUtils::MakeMaker;
 
-if ($^0 =~ /mswin32/i) {
+if ($^O =~ /mswin32/i) {
     print "Sorry but this doesn't work on Windows. Patches welcome.\n";
     exit;
 }

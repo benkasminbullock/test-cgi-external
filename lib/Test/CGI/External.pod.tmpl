@@ -217,6 +217,17 @@ regardless of whether tests fail or not.
 Set to a true value if the program is expected to produce errors. In
 other words, this switches off the test that errors are not printed.
 
+=item expect_failure
+
+    $options{expect_failure} = 1;
+    $test->run (\%options);
+
+Expect the CGI program to exit with a non-zero error status. In other
+words, this switches off the test that the exit status of the
+executable is zero. It does not actually test what error status the
+CGI program exits with, so a zero error status will not cause a failed
+test.
+
 =item html
 
      $options{html} = 1;

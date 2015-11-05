@@ -17,7 +17,7 @@ use JSON::Parse 'valid_json';
 use Test::Builder;
 use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
 
-our $VERSION = '0.07';
+our $VERSION = '0.09';
 
 sub new
 {
