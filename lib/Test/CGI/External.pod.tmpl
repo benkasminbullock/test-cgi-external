@@ -30,10 +30,6 @@ Test::CGI::External - run tests on an external CGI program
     $tester->do_compression_test (1);
     $tester->run (\%options);
 
-    # Print the plan.
-
-    $tester->plan ();
-
     done_testing ();
 
 After the test has run, the uncompressed output is in
@@ -42,13 +38,7 @@ C<$options{body}>.
 =head1 DESCRIPTION
 
 Test::CGI::External is a tool for running basic checks of the
-operation of a CGI (common gateway interface) program. It is meant to
-be used for "sanity checks" of CGI program operation. For example, if
-a CGI program prints stuff on standard output before it prints its
-HTTP headers, when running from behind a server, the only output
-visible from a browser is an obscure server error message.
-
-In a Perl script,
+operation of a CGI (common gateway interface) program. For example,
 
     use Test::More;
     my $tester = Test::CGI::External->new ();
@@ -56,7 +46,7 @@ In a Perl script,
     $tester->run ({});
     done_testing ();
 
-The above tests whether
+tests whether
 
 =over
 
@@ -75,8 +65,10 @@ debugging messages on standard output)
 
 =back
 
-In other words, this tests for extremely simple "slip-up" mistakes and
-basic program execution.
+In other words, this tests for extremely simple "slip-up" mistakes,
+such as forgetting to install the program, forgetting to make it
+executable, leaving print statements before the headers are printed,
+or error messages during running.
 
 Test::CGI::External runs CGI programs as stand-alone programs, under a
 faked CGI-like environment created by manipulating environment
@@ -130,10 +122,10 @@ L<IO::Uncompress::Gunzip>.
 Tell the tester to test whether the header declares the output
 character set correctly. 
 
-If you set expect charset, then the body of the output is upgraded
-from that encoding into Perl's Unicode encoding, C<utf8>. Unless the
-encoding is UTF-8, that upgrading is also added as a pass or fail
-test:
+If you set an expected character set with C<expect_charset>, then the
+body of the output is upgraded from that encoding into Perl's Unicode
+encoding, C<utf8>. Unless the encoding is UTF-8, that upgrading is
+also added as a pass or fail test:
 
     $tester->expect_charset ('EUC-JP');
 
@@ -141,6 +133,23 @@ adds a test for decoding from the EUC-JP encoding.
 
 This behaviour is new in version 0.08 of this module. Prior to version
 0.08, C<$output{body}> was not upgraded to C<utf8>.
+
+=head2 expect_mime_type
+
+    $tester->expect_mime_type ('text/html');
+
+Tell the tester what mime type to expect. This sets up a test for mime
+types.
+
+This method is new in version 0.11 of this module.
+
+=head2 set_no_warnings
+
+    $tester->set_no_warnings (1);
+
+Turn off the many and verbose warning messages this module prints if
+it thinks you're doing something wrong. Although the warnings are
+annoying, I suggest being cautious about turning these off.
 
 =head2 set_html_validator
 
@@ -303,7 +312,7 @@ test run.
 
 =item REMOTE_ADDR
 
-     $options{QUERY_STRING} = "127.0.0.1";
+     $options{REMOTE_ADDR} = "127.0.0.1";
      $test->run (\%options);
 
 This option sets the environment variable C<REMOTE_ADDR> to whatever
@@ -446,6 +455,11 @@ headers>. Each line of the header is checked as a separate test.
 
 This test is run by L</run>. It may be skipped using L</no_check_content>.
 
+=item (Optional) The mime type in the Content-Type header is what you want
+
+This test is run by L</run>. It is an optional test switched on by the
+L</expect_mime_type> method.
+
 =item (Optional) The charset parameter of the Content-Type header is what you want
 
 This test is run by L</run>. It is an optional test switched on by the
@@ -465,7 +479,8 @@ expected.
 
 =item (Optional) Caching works correctly
 
-This test is run by L</run>. It tests the following:
+This test is run by L</run>. It is an optional test switched on by
+L</do_caching_test>. It tests the following:
 
 =over
 
@@ -496,14 +511,15 @@ environment variable C<HTTP_IF_MODIFIED_SINCE>.
 
 This test is run by L</run>. It is an optional test switched on by the
 L</html> parameter. You also need to supply your own HTML validator
-using the C<set_html_validator> parameter. At the moment, this does
-not cause a test of the content type header. See L</BUGS>.
+using the C<set_html_validator> parameter. You should also set the
+expected mime type to C<text/html> with L</expect_mime_type> if you
+use this.
 
 =item (Optional) The output is valid JSON.
 
 This test is run by L</run>. It is an optional test switched on by the
-L</json> parameter. At the moment, this does not cause a test of the
-content type header. See L</BUGS>.
+L</json> parameter.  You should also set the expected mime type to
+C<application/json> with L</expect_mime_type> if you use this.
 
 =back
 
@@ -644,6 +660,9 @@ Version 0.09 added Unicode upgrading of L</body>.
 Version 0.10 marked the addition of do_caching_test and the removal of
 C<die_on_failure>, which had already been made invalid by the move to
 Test::Builder.
+
+Version 0.11 added support for testing mime types with
+L</expect_mime_type>.
 
 [% start_year='2011' %]
 [% INCLUDE "author" %]

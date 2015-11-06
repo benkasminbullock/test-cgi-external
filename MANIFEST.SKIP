@@ -14,3 +14,5 @@ MYMETA..*
 ^lib/Test/CGI/External\.pod\.tmpl$
 # Internal file.
 ^USERS$
+# Time sheet
+^timesheet\.txt$

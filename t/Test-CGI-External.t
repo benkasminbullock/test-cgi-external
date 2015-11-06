@@ -22,4 +22,7 @@ $options{REQUEST_METHOD} = 'POST';
 $options{input} = 'hallo baby.';
 $tester->run (\%options);
 
+$options{mime_type} = 'text/html';
+$tester->run (\%options);
+
 done_testing ();

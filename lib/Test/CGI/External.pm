@@ -18,7 +18,7 @@ use Test::Builder;
 use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
 #use Path::Tiny;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 sub new
 {
@@ -102,11 +102,30 @@ sub expect_charset
     $self->{expected_charset} = $charset;
 }
 
+sub expect_mime_type
+{
+    my ($self, $mime_type) = @_;
+    if ($mime_type) {
+	$self->note ("You have told me to expect a mime type of '$mime_type'.");
+    }
+    else {
+	$self->note ("You have deleted the mime type.");
+    }
+    $self->{mime_type} = $mime_type;
+}
+
 sub set_verbosity
 {
     my ($self, $verbosity) = @_;
     $self->{verbose} = !! $verbosity;
     $self->note ("You have asked me to print messages as I work.");
+}
+
+sub set_no_warnings
+{
+    my ($self, $onoff) = @_;
+    $self->{no_warn} = !! $onoff;
+    $self->on_off_msg ($onoff, "warnings");
 }
 
 sub test_if_modified_since
@@ -377,7 +396,7 @@ my $field_content = qr/(?:$HTTP_TEXT)*|
                        )*
                       /x;
 
-my $http_token = qr/(?:$HTTP_TOKEN)+/;
+my $http_token = qr/(?:$HTTP_TOKEN+)/;
 
 # Check for a valid content type line.
 
@@ -386,53 +405,41 @@ sub check_content_line_private
     my ($self, $header, $verbose) = @_;
 
     my $expected_charset = $self->{expected_charset};
-    my $content_type_line;
 
     $self->note ("I am checking to see if the output contains a valid content type line.");
     my $content_type_ok;
-    if ($header =~ m!(Content-Type:\s*.*)!i) {
-        $self->pass_test ("There is a Content-Type header");
-        $content_type_line = $1;
-        if ($content_type_line =~ m!^Content-Type:(?:$HTTP_LWS)+
-                                        (?:$HTTP_TOKEN)+
-                                        /
-                                        (?:$HTTP_TOKEN)+
-                                   !xi) {
-            $self->pass_test ("The Content-Type header is well-formed");
-            if ($expected_charset) {
-                if ($content_type_line =~ /charset
-                                           =
-                                           (
-                                               $http_token|
-                                               $quoted_string
-                                           )/xi) {
-                    my $charset = $1;
-                    $charset =~ s/^"(.*)"$/$1/;
-                    if (lc $charset ne lc $expected_charset) {
-                        $self->fail_test ("You told me to expect a charset value of '$expected_charset', but the content-type line of the CGI executable, '$content_type_line', contains a charset parameter with the value '$charset'");
-                    }
-                    else {
-                        $content_type_ok = 1;
-                        $self->pass_test ("The charset '$charset' corresponds to the one you said to expect, '$expected_charset'");
-                    }
-                }
-                else {
-                    $self->fail_test ("You told me to expect a charset (character set) value of '$expected_charset', but the content-type line of the CGI executable, '$content_type_line', does not contain a valid 'charset' parameter");
-                }
-            }
-            else {
-                $content_type_ok = 1;
-                if ($verbose) {
-                    print "# I am not testing for the 'charset' parameter.\n";
-                }
-            }
-        }
-        else {
-            $self->fail_test ("The Content-Type line '$content_type_line' does not match the specification required.");
-        }
+    my $has_content_type = ($header =~ m!(Content-Type:\s*.*)!i);
+    my $content_type_line = $1;
+    $self->do_test ($has_content_type, "There is a Content-Type header");
+    if (! $has_content_type) {
+	return;
     }
-    else {
-        $self->fail_test ("There is no 'Content-Type' line in the output.");
+    my $lineok = ($content_type_line =~ m!^Content-Type:(?:$HTTP_LWS)+
+					  ($http_token/$http_token)
+					 !xi);
+    my $mime_type = $1;
+    $self->do_test ($lineok, "The Content-Type header is well-formed");
+    if (! $lineok) {
+	return;
+    }
+    if ($self->{mime_type}) {
+	$self->do_test ($mime_type eq $self->{mime_type},
+			"Got expected mime type $mime_type = $self->{mime_type}");
+    }
+    if ($expected_charset) {
+	my $has_charset = ($content_type_line =~ /charset
+						  =
+						  (
+						      $http_token|
+						      $quoted_string
+						  )/xi);
+	my $charset = $1;
+	$self->do_test ($has_charset, "Specifies a charset");
+	if ($has_charset) {
+	    $charset =~ s/^"(.*)"$/$1/;
+	    $self->do_test (lc $charset eq lc $expected_charset,
+			    "Got expected charset $charset = $expected_charset");
+	}
     }
 }
 
@@ -569,6 +576,28 @@ sub run
     if ($self->{verbose}) {
         print "# I am commencing the testing of CGI executable '$self->{cgi_executable}'.\n";
     }
+    if ($options->{html} && ! $self->{no_warn}) {
+	if ($self->{mime_type}) {
+	    if ($self->{mime_type} ne 'text/html') {
+		carp "If you want to test for HTML output, you should also specify a mime type 'text/html', but you have specified '$self->{mime_type}'";
+	    }
+	}
+	else {
+	    carp "If you want to check for html validity, you should also check the mime type is 'text/html' using expect_mime_type";
+	}
+    }
+    elsif ($options->{json} && ! $self->{no_warn}) {
+	my $mime_type = $self->{mime_type};
+	if ($mime_type) {
+	    if ($mime_type ne 'text/plain' && $mime_type ne 'application/json') {
+		carp "Your expected mime type of $mime_type is not valid for JSON";
+	    }
+	}
+	else {
+	    carp "There is no expected mime type, I suggest text/plain or application/json for JSON output";
+	}
+    }
+
 #    eval {
     run_private ($self);
     my $output = $self->{run_options}->{output};

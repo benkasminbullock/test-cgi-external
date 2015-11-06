@@ -3,7 +3,7 @@ use strict;
 use Test::Tester;
 use Test::More;
 use Test::CGI::External;
-use FindBin;
+use FindBin '$Bin';
 
 if ($^O eq 'MSWin32') {
     plan skip_all => "These tests not adapted for Microsoft Windows";
@@ -20,7 +20,7 @@ $options{REQUEST_METHOD} = 'GET';
 my ($premature, @results) = run_tests (
     sub {
 	$tester->set_cgi_executable (
-	    "$FindBin::Bin/thisdoesnotactuallyexist.cgi"
+	    "$Bin/thisdoesnotactuallyexist.cgi"
 	);
     }
 );
@@ -30,7 +30,7 @@ ok (! $results[0]{ok}, "failed first test because does not exist");
 ($premature, @results) = run_tests (
     sub {
 	$tester->set_cgi_executable (
-	    "$FindBin::Bin/test-tester.t"
+	    "$Bin/test-tester.t"
 	);
     }
 );
@@ -42,7 +42,7 @@ ok (! $results[1]{ok}, "failed second test because not executable");
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi", '--header');
+	$tester->set_cgi_executable ("$Bin/test.cgi", '--header');
     }
 );
 ok (! $premature);
@@ -53,7 +53,7 @@ ok ($results[1]{ok}, "passed second test because executable, with options");
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi");
+	$tester->set_cgi_executable ("$Bin/test.cgi");
     }
 );
 ok (! $premature);
@@ -75,7 +75,7 @@ for (@results) {
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi", '--header');
+	$tester->set_cgi_executable ("$Bin/test.cgi", '--header');
     }
 );
 
@@ -97,7 +97,7 @@ for (@results) {
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi", '--exit');
+	$tester->set_cgi_executable ("$Bin/test.cgi", '--exit');
     }
 );
 
@@ -120,7 +120,7 @@ note ("Don't send a charset");
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi", '--charset');
+	$tester->set_cgi_executable ("$Bin/test.cgi", '--charset');
 	$tester->expect_charset ('EUC-JP');
     }
 );
@@ -147,7 +147,7 @@ note ("Send a bad charset");
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi", '--badcharset');
+	$tester->set_cgi_executable ("$Bin/test.cgi", '--badcharset');
 	$tester->expect_charset ('UTF-8');
     }
 );
@@ -159,7 +159,7 @@ note ("Send a bad charset");
 );
 ok (! $premature, "no premature diagnostics");
 for (@results) {
-    if ($_->{name} =~ /expect a charset/) {
+    if ($_->{name} =~ /Got expected charset/) {
 	ok (! $_->{ok}, "'$_->{name}' - bad charset causes failure");
     }
     else {
@@ -171,7 +171,7 @@ note ("test with compression");
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi", '--gzip');
+	$tester->set_cgi_executable ("$Bin/test.cgi", '--gzip');
 	$tester->do_compression_test (1);
     }
 );
@@ -186,7 +186,7 @@ for (@results) {
 }
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
+	$tester->set_cgi_executable ("$Bin/test.cgi",
 				     '--gzip', '--gzipheader');
 	$tester->do_compression_test (1);
     }
@@ -211,7 +211,7 @@ $tester->do_compression_test (undef);
 
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
+	$tester->set_cgi_executable ("$Bin/test.cgi",
 				     '--contenttype');
     }
 );
@@ -232,7 +232,7 @@ for (@results) {
 }
 ($premature, @results) = run_tests (
     sub {
-	$tester->set_cgi_executable ("$FindBin::Bin/test.cgi",
+	$tester->set_cgi_executable ("$Bin/test.cgi",
 				     '--contenttype');
     }
 );
