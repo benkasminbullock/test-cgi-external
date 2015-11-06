@@ -2,8 +2,10 @@ Revision history for perl module Test::CGI::External
 
 0.10 2015-11-06
 
-- Document caching support
-- Document the tests applied by the module
+- The caching tests were documented.
+- The tests applied by the module were listed.
+- The invalid option "die_on_failure" was removed from the documentation.
+- Refactoring.
 
 0.09 2015-11-04
 

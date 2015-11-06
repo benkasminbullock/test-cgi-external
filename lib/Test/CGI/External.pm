@@ -18,14 +18,11 @@ use Test::Builder;
 use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
 #use Path::Tiny;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 sub new
 {
     my %tester;
-    for my $t (qw/tests failures successes/) {
-        $tester{$t} = 0;
-    }
 
     my $tb = Test::Builder->new ();
     $tester{tb} = $tb;
@@ -617,11 +614,6 @@ sub run
     }
     if ($options->{json}) {
 	validate_json ($self);
-    }
-    if ($options->{die_on_failure}) {
-        if ($self->{failures} > 0) {
-            croak "You have selected 'die on failure'. I am dying due to $self->{failures} failed tests.\n";
-        }
     }
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";
