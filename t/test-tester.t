@@ -108,7 +108,7 @@ for (@results) {
 );
 ok (! $premature, "no premature diagnostics");
 for (@results) {
-    if ($_->{name} =~ /exited with non-zero status/) {
+    if ($_->{name} =~ /exited with zero status/) {
 	ok (! $_->{ok}, "'$_->{name}' - non-zero exit value causes failure");
     }
     else {

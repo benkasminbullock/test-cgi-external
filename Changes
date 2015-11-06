@@ -1,5 +1,10 @@
 Revision history for perl module Test::CGI::External
 
+0.10 2015-11-06
+
+- Document caching support
+- Document the tests applied by the module
+
 0.09 2015-11-04
 
 - Unicode upgrade depending on encoding

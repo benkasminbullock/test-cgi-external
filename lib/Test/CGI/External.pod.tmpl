@@ -99,6 +99,16 @@ should work with Perl testing modules like L<Test::More>.
 
 =head1 METHODS
 
+=head2 do_caching_test
+
+    $tester->do_caching_test (1);
+
+Turn on or off testing of caching. If this test is "on", the CGI
+executable will be tested for producing a "Last-Modified: " header
+with a correctly-formatted date, and to be able to respond with a 304
+"Not modified" response when sent a date later than its
+"Last-Modified" date.
+
 =head2 do_compression_test
 
     $tester->do_compression_test (1);
@@ -129,6 +139,19 @@ adds a test for decoding from the EUC-JP encoding.
 
 This behaviour is new in version 0.08 of this module. Prior to version
 0.08, C<$output{body}> was not upgraded to C<utf8>.
+
+=head2 set_html_validator
+
+    $tester->set_html_validator ('./my-favourite-validator.pl');
+
+Set an HTML validator. The validator should be a standalone
+program. It should take take arguments of file names to validate, and
+print out to standard output the errors it finds. It should print
+nothing if it doesn't find any errors. Empty output from the HTML
+validator program is regarded as successful completion. The error
+output of the HTML validator is discarded.
+
+This interface was added in version 0.10 of this module.
 
 =head2 new
 
@@ -214,27 +237,30 @@ regardless of whether tests fail or not.
      $options{expect_errors} = 1;
      $test->run (\%options);
 
-Set to a true value if the program is expected to produce errors. In
-other words, this switches off the test that errors are not printed.
+Set to a true value if the program is expected to produce errors. This
+inverts the test that errors are not printed, and makes it into a test
+that errors are printed, so if your program doesn't print an error it
+will fail a test.
 
 =item expect_failure
 
     $options{expect_failure} = 1;
     $test->run (\%options);
 
-Expect the CGI program to exit with a non-zero error status. In other
-words, this switches off the test that the exit status of the
-executable is zero. It does not actually test what error status the
-CGI program exits with, so a zero error status will not cause a failed
-test.
+Expect the CGI program to exit with a non-zero error status. This
+switches off the test that the exit status of the executable is
+zero. It does not actually test what error status the CGI program
+exits with, so a zero error status will not cause a failed test. Note
+carefully that this behaviour is slightly different from that of
+L</expect_errors> in that it does not invert the test, but skips it.
 
 =item html
 
      $options{html} = 1;
      $test->run (\%options);
 
-If set to a true value, validate the html using
-F<projects/html-validate/validate.go>. See L</BUGS>.
+If set to a true value, validate the html using a validator you have
+set up with L</set_html_validator>.
 
 =item HTTP_COOKIE
 
@@ -340,9 +366,9 @@ the return value of Perl's length function.
     my $error_output = $options{error_output};
 
 Any errors output by the CGI program. This is an empty string if there
-were no errors. If you are expecting to get error messages, remember
-to set L</expect_errors>, otherwise any error output at all will cause
-a test to fail.
+were no errors, not the undefined value. If you are expecting to get
+error messages, remember to set L</expect_errors>, otherwise any error
+output at all will cause a test to fail.
 
 =item exit_code
 
@@ -381,19 +407,117 @@ contain binary compressed data.
 
 =back
 
+=head1 TESTS APPLIED
+
+The following tests are applied:
+
+=over
+
+=item CGI executable exists
+
+This test is run by L</set_cgi_executable>.
+
+=item CGI executable is an executable file
+
+This test is run by L</set_cgi_executable>. This test is skipped on Windows.
+
+=item The exit status of the CGI program is zero
+
+This test is run by L</run>. It may be skipped using L</expect_failure>.
+
+=item The program has produced output
+
+This test is run by L</run>.
+
+=item The program does not produce error output
+
+This test is run by L</run>. It may be inverted using
+L</expect_errors>. It's meant to catch things like stray fprintf
+statements in the executable.
+
+=item The program has printed headers
+
+This test is run by L</run>. This tests for some headers followed by a
+blank line.
+
+=item Each header is correctly formatted
+
+This test is run by L</run>. It's meant to catch things like stray
+printf statements in the executable, or forgetting to print a
+header. The header format is as defined by L</Specification for HTTP
+headers>. Each line of the header is checked as a separate test.
+
+=item The program has printed a Content-Type header
+
+This test is run by L</run>. It may be skipped using L</no_check_content>.
+
+=item The charset parameter of the Content-Type header is right
+
+This test is run by L</run>. It is an optional test switched on by the
+L</expect_charset> method.
+
+=item The body of the output is compressed
+
+This test is run by L</run>. It is an optional test switched on by the
+L</do_compression_test> method. This only supports C<gzip> encodings.
+
+=item The body of the output is in the correct encoding
+
+This test is run by L</run>. It is an optional test switched on by the
+L</expect_charset> method. If the parameter set by L</expect_charset>
+is not UTF-8, it runs a test that the encoding of the output is as
+expected.
+
+=item Caching works correctly
+
+This test is run by L</run>. It tests the following:
+
+=over
+
+=item The CGI is producing a Last-Modified header
+
+If this test fails, it assumes that the CGI cannot understand
+If-Modified-Since requests and does not perform the following tests.
+
+=item The CGI's Last-Modified header contains a date which HTTP::Date can parse
+
+=item Basic tests are all run again
+
+All of the tests of basic functioning, such as producing output and
+correctly-formatted HTTP headers, are re-run under the
+"If-Modified-Since" regimen.
+
+=item The CGI is correctly producing a 304 response
+
+It is tested whether the program is correctly producing a 304 response
+when sent an "If-Modified-Since" request using the Last-Modified date
+which it supplied in the above test.
+
+
+
+=back
+
+=item The output is valid HTML
+
+This test is run by L</run>. It is an optional test switched on by the
+L</html> parameter. At the moment, this does not cause a test of the
+content type header. See L</BUGS>.
+
+=item The output is valid JSON.
+
+This test is run by L</run>. It is an optional test switched on by the
+L</json> parameter. At the moment, this does not cause a test of the
+content type header. See L</BUGS>.
+
+=back
+
 =head1 BUGS
 
 This assumes line endings are C<\n> in some places. There may be
 problems with C<\r\n> support.
 
-The html validator mentioned above is a private program. This module
-was removed from CPAN and this was added when the whole module was
-"privatized".
-
 The tests use the internals of Test::Builder, and the pass/fail test
-messages are somewhat disorganized.
-
-The test contents are not documented.
+messages are somewhat disorganized (see also L</HISTORY>).
 
 The mixture of methods (see L</METHODS>) and options (see L</Possible
 options>) is somewhat messy.
@@ -408,12 +532,17 @@ from actual example programs, which are test-run during the build.)
 
 The module has very few tests.
 
-No check for MD5 checksums. For completeness, there probably should be a check for this.
+No check for MD5 checksums. For completeness, there probably should be
+a check for this.
 
 Not adapted for Microsoft Windows.
 
-C<CONTENT_LENGTH> is set from C<length ($input)>, so it may be broken
-for utf8 strings.
+The program does not check the mime type in the Content-Type line,
+despite having tests for HTML and JSON validity.
+
+I wanted to include an example validator program in this distribution
+but I cannot find anything remotely useable on CPAN. For example
+L<HTML::Lint> seems to be very problematic.
 
 =head1 SEE ALSO
 
@@ -486,6 +615,17 @@ The module also used to depend on L<IPC::Run3>, but there were some
 issues with this module messing around with the global variables. It
 does something like C<binmode STDOUT>, which interferes with other
 parts of the program, so that had to be removed.
+
+=head1 HISTORY
+
+This module started out as a test program for a CGI program written in
+C. Originally, it didn't use the Perl Test::More-style framework, but
+counted its pass and fail tests itself. I released the module to CPAN
+because I couldn't find a similar alternative, and I thought it might
+be useful to someone. Since the initial release I have changed it to
+use the Test::More framework.
+
+
 
 [% start_year='2011' %]
 [% INCLUDE "author" %]

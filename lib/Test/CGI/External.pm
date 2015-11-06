@@ -16,6 +16,7 @@ use HTTP::Date;
 use JSON::Parse 'valid_json';
 use Test::Builder;
 use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
+#use Path::Tiny;
 
 our $VERSION = '0.09';
 
@@ -28,35 +29,49 @@ sub new
 
     my $tb = Test::Builder->new ();
     $tester{tb} = $tb;
+    $tester{html_validator} = '/home/ben/bin/validate';
 
     return bless \%tester;
+}
+
+sub note
+{
+    my ($self, $note) = @_;
+    my (undef, $file, $line) = caller ();
+    if ($self->{verbose}) {
+        $self->{tb}->note ("$file:$line: $note");
+    }
+}
+
+sub on_off_msg
+{
+    my ($self, $switch, $type) = @_;
+    if ($self->{verbose}) {
+	my $msg = "You have asked me to turn ";
+	if ($switch) {
+	    $msg .= "on";
+	}
+	else {
+	    $msg .= "off";
+	}
+	$msg .= "testing of $type";
+	my (undef, $file, $line) = caller ();
+        $self->{tb}->note ("$file:$line: $msg");
+    }
 }
 
 sub set_cgi_executable
 {
     my ($self, $cgi_executable, @command_line_options) = @_;
-    if ($self->{verbose}) {
-        $self->{tb}->note ("I am setting the CGI executable to be tested to '$cgi_executable'.\n");
-    }
-    if (! -f $cgi_executable) {
-        $self->fail_test ("I cannot find a file corresponding to CGI executable '$cgi_executable'");
-    }
-    else {
-	$self->pass_test ("found executable $cgi_executable");
-    }
+    $self->note ("I am setting the CGI executable to be tested to '$cgi_executable'.");
+    $self->do_test (-f $cgi_executable, "found executable $cgi_executable");
     if ($^O eq 'MSWin32') {
+	# These tests don't do anything useful on Windows, see
+	# http://perldoc.perl.org/perlport.html#-X
 	$self->pass_test ('Invalid test for MS Windows');
     }
     else {
-	# These tests don't do anything useful on Windows, see
-	# http://perldoc.perl.org/perlport.html#-X
-
-	if (! -x $cgi_executable) {
-	    $self->fail_test ("The CGI executable '$cgi_executable' exists but is not executable");
-	}
-	else {
-	    $self->pass_test ("$cgi_executable is executable");
-	}
+	$self->do_test (-x $cgi_executable, "$cgi_executable is executable");
     }
     $self->{cgi_executable} = $cgi_executable;
     if (@command_line_options) {
@@ -71,32 +86,22 @@ sub do_compression_test
 {
     my ($self, $switch) = @_;
     $switch = !! $switch;
-    if ($self->{verbose}) {
-	my $msg = "You have asked me to turn ";
-        if ($switch) {
-            $msg .= "on";
-        }
-        else {
-            $msg .= "off";
-        }
-        $msg .= " testing of compression.\n";
-	$self->{tb}->note ($msg);
-    }
+    $self->on_off_msg ($switch, "compression");
     $self->{comp_test} = $switch;
 }
 
 sub do_caching_test
 {
-    my ($self, $onoff) = @_;
-    $self->{cache_test} = $onoff;
+    my ($self, $switch) = @_;
+    $switch = !! $switch;
+    $self->on_off_msg ($switch, "if-modified/last-modified response");
+    $self->{cache_test} = $switch;
 }
 
 sub expect_charset
 {
     my ($self, $charset) = @_;
-    if ($self->{verbose}) {
-	$self->{tb}->note ("You have told me to expect a 'charset' value of '$charset'.\n");
-    }
+    $self->note ("You have told me to expect a 'charset' value of '$charset'.");
     $self->{expected_charset} = $charset;
 }
 
@@ -104,32 +109,31 @@ sub set_verbosity
 {
     my ($self, $verbosity) = @_;
     $self->{verbose} = !! $verbosity;
-    if ($self->{verbose}) {
-        $self->{tb}->note ("# You have asked ", __PACKAGE__, " to print messages as it works.\n");
-    }
+    $self->note ("You have asked me to print messages as I work.");
 }
 
 sub test_if_modified_since
 {
-    my ($o, $last_modified) = @_;
+    my ($self, $last_modified) = @_;
     die unless defined $last_modified;
     my $saved = $ENV{HTTP_IF_MODIFIED_SINCE};
     $ENV{HTTP_IF_MODIFIED_SINCE} = $last_modified;
+    $self->note ("Testing response with last modified time $last_modified");
     # Copy the hash of options into a private copy, so that we can run
     # the thing again without overwriting our precious stuff.
-    my $saved_run_options = $o->{run_options};
+    my $saved_run_options = $self->{run_options};
     my %run_options = %$saved_run_options;
-    $o->{run_options} = \%run_options;
-    my $saved_no_warn = $o->{no_warn};
-    $o->{no_warn} = 1;
-    run_private ($o);
-    $o->check_headers_private ($o);
+    $self->{run_options} = \%run_options;
+    my $saved_no_warn = $self->{no_warn};
+    $self->{no_warn} = 1;
+    run_private ($self);
+    $self->check_headers_private ($self);
     my $headers = $run_options{headers};
     # Restore this to whatever it was, probably "undef".
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.
-    $o->{run_options} = $saved_run_options;
-    $o->{no_warn} = $saved_no_warn;
+    $self->{run_options} = $saved_run_options;
+    $self->{no_warn} = $saved_no_warn;
 }
 
 sub check_caching_private
@@ -150,6 +154,9 @@ sub check_caching_private
     if ($last_modified) {
 	$self->test_if_modified_since ($last_modified);
     }
+    else {
+	$self->note ("Not doing last modified test due to no-header failure");
+    }
     # Restore the headers because they were overwritten when we did
     # the caching test.
     $output->{headers} = $headers;
@@ -160,16 +167,20 @@ my %valid_request_method = map {$_ => 1} @request_method_list;
 
 sub check_request_method
 {
-    my ($request_method) = @_;
+    my ($self, $request_method) = @_;
     my $default_request_method = 'GET';
     if ($request_method) {
         if ($request_method && ! $valid_request_method{$request_method}) {
-            carp "You have set the request method to a value '$request_method' which is not one of the ones I know about, which are ", join (', ', @request_method_list), " so I am setting it to the default, '$default_request_method'";
+	    if (! $self->{no_warn}) {
+		carp "You have set the request method to a value '$request_method' which is not one of the ones I know about, which are ", join (', ', @request_method_list), " so I am setting it to the default, '$default_request_method'";
+	    }
             $request_method = $default_request_method;
         }
     }
     else {
-        carp "You have not set the request method, so I am setting it to the default, '$default_request_method'";
+	if (! $self->{no_warn}) {
+	    carp "You have not set the request method, so I am setting it to the default, '$default_request_method'";
+	}
         $request_method = $default_request_method;
     }
     return $request_method;
@@ -181,7 +192,7 @@ sub do_test
     $self->{tb}->ok ($test, $message);
 }
 
-# Register a successful test
+# Register a successful test (deprecated legacy from pre-Test::Builder days)
 
 sub pass_test
 {
@@ -189,7 +200,7 @@ sub pass_test
     $self->{tb}->ok (1, $test);
 }
 
-# Fail a test and keep going.
+# Fail a test and keep going (deprecated legacy from pre-Test::Builder days)
 
 sub fail_test
 {
@@ -213,17 +224,19 @@ sub abort_test
     $self->{tb}->skip_all ($test);
 }
 
+# Set an environment variable, with warning about collisions.
+
 sub setenv_private
 {
-    my ($o, $name, $value) = @_;
-    if (! $o->{set_env}) {
-        $o->{set_env} = [$name];
+    my ($self, $name, $value) = @_;
+    if (! $self->{set_env}) {
+        $self->{set_env} = [$name];
     }
     else {
-        push @{$o->{set_env}}, $name;
+        push @{$self->{set_env}}, $name;
     }
     if ($ENV{$name}) {
-	if (! $o->{no_warn}) {
+	if (! $self->{no_warn}) {
 	    carp "A variable '$name' is already set in the environment.\n";
 	}
     }
@@ -234,14 +247,14 @@ sub setenv_private
 
 sub run_private
 {
-    my ($o) = @_;
+    my ($self) = @_;
 
     # Pull everything out of the object and into normal variables.
 
-    my $verbose = $o->{verbose};
-    my $options = $o->{run_options};
-    my $cgi_executable = $o->{cgi_executable};
-    my $comp_test = $o->{comp_test};
+    my $verbose = $self->{verbose};
+    my $options = $self->{run_options};
+    my $cgi_executable = $self->{cgi_executable};
+    my $comp_test = $self->{comp_test};
 
     # Hassle up the CGI inputs, including environment variables, from
     # the options the user has given.
@@ -251,107 +264,83 @@ sub run_private
 
     my $query_string = $options->{QUERY_STRING};
     if (defined $query_string) {
-        if ($verbose) {
-            $o->{tb}->note ("I am setting the query string to '$query_string'.\n");
-        }
-        setenv_private ($o, 'QUERY_STRING', $query_string);
+	$self->note ("I am setting the query string to '$query_string'.");
+        setenv_private ($self, 'QUERY_STRING', $query_string);
     }
-    elsif ($verbose) {
-	$o->{tb}->note ("There is no query string.\n");
+    else {
+	$self->note ("There is no query string.");
     }
-    my $request_method = check_request_method ($options->{REQUEST_METHOD});
-    if ($verbose) {
-	$o->{tb}->note ("The request method is '$request_method'.\n");
-    }
-    setenv_private ($o, 'REQUEST_METHOD', $request_method);
+    my $request_method = $self->check_request_method ($options->{REQUEST_METHOD});
+    $self->note ("The request method is '$request_method'.");
+    setenv_private ($self, 'REQUEST_METHOD', $request_method);
     my $content_type = $options->{CONTENT_TYPE};
     if ($content_type) {
-	if ($verbose) {
-	    $o->{tb}->note ("The content type is '$content_type'.\n");
-	}
-	setenv_private ($o, 'CONTENT_TYPE', $content_type);
+	$self->note ("The content type is '$content_type'.");
+	setenv_private ($self, 'CONTENT_TYPE', $content_type);
     }
     if ($options->{HTTP_COOKIE}) {
-        setenv_private ($o, 'HTTP_COOKIE', $options->{HTTP_COOKIE});
+        setenv_private ($self, 'HTTP_COOKIE', $options->{HTTP_COOKIE});
     }
-    my $remote_addr = $o->{run_options}->{REMOTE_ADDR};
+    my $remote_addr = $self->{run_options}->{REMOTE_ADDR};
     if ($remote_addr) {
-        if ($verbose) {
-	    $o->{tb}->note ("I am setting the remote address to '$remote_addr'.\n");
-        }
-        setenv_private ($o, 'REMOTE_ADDR', $remote_addr);
+	$self->note ("I am setting the remote address to '$remote_addr'.");
+        setenv_private ($self, 'REMOTE_ADDR', $remote_addr);
     }
     if (defined $options->{input}) {
-        $o->{input} = $options->{input};
-	if (utf8::is_utf8 ($o->{input})) {
-	    $o->{input} = encode_utf8 ($o->{input});
+        $self->{input} = $options->{input};
+	if (utf8::is_utf8 ($self->{input})) {
+	    $self->{input} = encode_utf8 ($self->{input});
 	}
-        my $content_length = length ($o->{input});
-        setenv_private ($o, 'CONTENT_LENGTH', $content_length);
-        if ($verbose) {
-	    $o->{tb}->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.\n");
-        }
+        my $content_length = length ($self->{input});
+        setenv_private ($self, 'CONTENT_LENGTH', $content_length);
+	$self->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.");
 	$options->{content_length} = $content_length;
     }
 
     if ($comp_test) {
         if ($verbose) {
-	    $o->{tb}->note ("I am requesting gzip encoding from the CGI executable.\n");
+	    $self->{tb}->note ("I am requesting gzip encoding from the CGI executable.\n");
         }
-        setenv_private ($o, 'HTTP_ACCEPT_ENCODING', 'gzip, fake');
+        setenv_private ($self, 'HTTP_ACCEPT_ENCODING', 'gzip, fake');
     }
 
     # Actually run the executable under the current circumstances.
 
     my @cmd = ($cgi_executable);
-    if ($o->{command_line_options}) {
-	push @cmd, @{$o->{command_line_options}};
+    if ($self->{command_line_options}) {
+	push @cmd, @{$self->{command_line_options}};
     }
-    if ($verbose) {
-	$o->{tb}->note ("I am running '@cmd'\n");
-    }
-    $o->run3 (\@cmd);
-    $options->{output} = $o->{output};
-    $options->{error_output} = $o->{errors};
-    if ($verbose) {
-	$o->{tb}->note (sprintf ("The program has now finished running. There were %d bytes of output.\n", length ($o->{output})));
-    }
+    $self->note ("I am running '@cmd'");
+    $self->run3 (\@cmd);
+    $options->{output} = $self->{output};
+    $options->{error_output} = $self->{errors};
     $options->{exit_code} = $?;
+    $self->note (sprintf ("The program has now finished running. There were %d bytes of output.", length ($self->{output})));
     if ($options->{expect_failure}) {
     }
     else {
-	if ($options->{exit_code} != 0) {
-	    my $message = "The CGI executable exited with non-zero status";
-	    $o->fail_test ($message);
-	}
-	else {
-	    $o->pass_test ("The CGI executable exited with a zero status");
-	}
+	$self->do_test ($options->{exit_code} == 0,
+			"The CGI executable exited with zero status");
     }
-    if (! $options->{output}) {
-        $o->fail_test ("The CGI executable produced some output");
-    }
-    else {
-        $o->pass_test ("The CGI executable produced some output");
-    }
+    $self->do_test ($options->{output}, "The CGI executable produced some output");
     if ($options->{expect_errors}) {
 	if ($options->{error_output}) {
-	    $o->pass_test ("The CGI executable produced some output on the error stream as follows:\n$o->{errors}\n");
+	    $self->pass_test ("The CGI executable produced some output on the error stream as follows:\n$self->{errors}\n");
 	}
 	else {
-	    $o->fail_test ("Expecting errors, but the CGI executable did not produce any output on the error stream");
+	    $self->fail_test ("Expecting errors, but the CGI executable did not produce any output on the error stream");
 	}
     }
     else {
-	if ($o->{errors}) {
-	    $o->fail_test ("Not expecting errors, but the CGI executable produced some output on the error stream as follows:\n$o->{errors}\n");
+	if ($self->{errors}) {
+	    $self->fail_test ("Not expecting errors, but the CGI executable produced some output on the error stream as follows:\n$self->{errors}\n");
 	}
 	else {
-	    $o->pass_test ("The CGI executable did not produce any output on the error stream");
+	    $self->pass_test ("The CGI executable did not produce any output on the error stream");
 	}
     }
 
-    $o->tidy_files ();
+    $self->tidy_files ();
 
     return;
 }
@@ -397,24 +386,22 @@ my $http_token = qr/(?:$HTTP_TOKEN)+/;
 
 sub check_content_line_private
 {
-    my ($o, $header, $verbose) = @_;
+    my ($self, $header, $verbose) = @_;
 
-    my $expected_charset = $o->{expected_charset};
+    my $expected_charset = $self->{expected_charset};
     my $content_type_line;
 
-    if ($verbose) {
-        print "# I am checking to see if the output contains a valid content type line.\n";
-    }
+    $self->note ("I am checking to see if the output contains a valid content type line.");
     my $content_type_ok;
     if ($header =~ m!(Content-Type:\s*.*)!i) {
-        $o->pass_test ("There is a Content-Type header");
+        $self->pass_test ("There is a Content-Type header");
         $content_type_line = $1;
         if ($content_type_line =~ m!^Content-Type:(?:$HTTP_LWS)+
                                         (?:$HTTP_TOKEN)+
                                         /
                                         (?:$HTTP_TOKEN)+
                                    !xi) {
-            $o->pass_test ("The Content-Type header is well-formed");
+            $self->pass_test ("The Content-Type header is well-formed");
             if ($expected_charset) {
                 if ($content_type_line =~ /charset
                                            =
@@ -425,15 +412,15 @@ sub check_content_line_private
                     my $charset = $1;
                     $charset =~ s/^"(.*)"$/$1/;
                     if (lc $charset ne lc $expected_charset) {
-                        $o->fail_test ("You told me to expect a charset value of '$expected_charset', but the content-type line of the CGI executable, '$content_type_line', contains a charset parameter with the value '$charset'");
+                        $self->fail_test ("You told me to expect a charset value of '$expected_charset', but the content-type line of the CGI executable, '$content_type_line', contains a charset parameter with the value '$charset'");
                     }
                     else {
                         $content_type_ok = 1;
-                        $o->pass_test ("The charset '$charset' corresponds to the one you said to expect, '$expected_charset'");
+                        $self->pass_test ("The charset '$charset' corresponds to the one you said to expect, '$expected_charset'");
                     }
                 }
                 else {
-                    $o->fail_test ("You told me to expect a charset (character set) value of '$expected_charset', but the content-type line of the CGI executable, '$content_type_line', does not contain a valid 'charset' parameter");
+                    $self->fail_test ("You told me to expect a charset (character set) value of '$expected_charset', but the content-type line of the CGI executable, '$content_type_line', does not contain a valid 'charset' parameter");
                 }
             }
             else {
@@ -444,22 +431,19 @@ sub check_content_line_private
             }
         }
         else {
-            $o->fail_test ("The Content-Type line '$content_type_line' does not match the specification required.");
+            $self->fail_test ("The Content-Type line '$content_type_line' does not match the specification required.");
         }
     }
     else {
-        $o->fail_test ("There is no 'Content-Type' line in the output.");
-    }
-    if ($content_type_ok && $verbose) {
-        print "# The content-type line appears to be OK.\n";
+        $self->fail_test ("There is no 'Content-Type' line in the output.");
     }
 }
 
 sub check_http_header_syntax_private
 {
-    my ($o, $header, $verbose) = @_;
+    my ($self, $header, $verbose) = @_;
     if ($verbose) {
-        print "# I am checking the HTTP header produced.\n";
+        $self->note ("Checking the HTTP header.");
     }
     my @lines = split /\r?\n/, $header;
     my $line_number = 0;
@@ -470,76 +454,77 @@ sub check_http_header_syntax_private
     for my $line (@lines) {
         if ($line =~ /^$/) {
             if ($line_number == 0) {
-                $o->fail_test ("The output of the CGI executable has a blank line as its first line");
+                $self->fail_test ("The output of the CGI executable has a blank line as its first line");
             }
             else {
-                $o->pass_test ("There are $line_number valid header lines");
+                $self->pass_test ("There are $line_number valid header lines");
             }
             # We have finished looking at the headers.
             last;
         }
         $line_number += 1;
         if ($line !~ $line_re) {
-            $o->fail_test ("The header on line $line_number, '$line', appears not to be a correctly-formed HTTP header");
+            $self->fail_test ("The header on line $line_number, '$line', appears not to be a correctly-formed HTTP header");
             $bad_headers++;
         }
         else {
 	    my $key = lc $1;
 	    my $value = $2;
 	    $headers{$key} = $value;
-            $o->pass_test ("The header on line $line_number, '$line', appears to be a correctly-formed HTTP header");
+            $self->pass_test ("The header on line $line_number, '$line', appears to be a correctly-formed HTTP header");
         }
     }
     if ($verbose) {
         print "# I have finished checking the HTTP header for consistency.\n";
     }
-    $o->{run_options}{headers} = \%headers;
+    $self->{run_options}{headers} = \%headers;
 }
 
 # Check whether the headers of the CGI output are well-formed.
 
 sub check_headers_private
 {
-    my ($o) = @_;
+    my ($self) = @_;
 
     # Extract variables from the object
 
-    my $verbose = $o->{verbose};
-    my $output = $o->{run_options}->{output};
+    my $verbose = $self->{verbose};
+    my $output = $self->{run_options}->{output};
     if (! $output) {
+	$self->note ("No output, skipping header tests");
         return;
     }
     my ($header, $body) = split /\r?\n\r?\n/, $output, 2;
-    check_http_header_syntax_private ($o, $header, $verbose);
-    if (! $o->{no_check_content}) {
-        check_content_line_private ($o, $header, $verbose);
+    check_http_header_syntax_private ($self, $header, $verbose);
+    if (! $self->{no_check_content}) {
+        check_content_line_private ($self, $header, $verbose);
     }
 
-    $o->{run_options}->{header} = $header;
-    $o->{run_options}->{body} = $body;
+    $self->{run_options}->{header} = $header;
+    $self->{run_options}->{body} = $body;
 }
 
 sub check_compression_private
 {
-    my ($o) = @_;
-    my $body = $o->{run_options}->{body};
-    my $header = $o->{run_options}->{header};
-    my $verbose = $o->{verbose};
+    my ($self) = @_;
+    my $body = $self->{run_options}->{body};
+    my $header = $self->{run_options}->{header};
+    my $verbose = $self->{verbose};
     if ($verbose) {
         print "# I am testing whether compression has been applied to the output.\n";
     }
     if ($header !~ /Content-Encoding:.*\bgzip\b/i) {
-        $o->fail_test ("Output does not have a header indicating compression");
+        $self->fail_test ("Output does not have a header indicating compression");
     }
     else {
-        $o->pass_test ("The header claims that the output is compressed");
+        $self->pass_test ("The header claims that the output is compressed");
         my $uncompressed;
         #printf "The length of the body is %d\n", length ($body);
 	eval {
 	    $uncompressed = gunzip $body;
 	};
         if ($@) {
-            $o->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error '$@'");
+            $self->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error '$@'");
             my $failedfile = "$0.gunzip-failure.$$";
             open my $temp, ">:bytes", $failedfile or die $!;
             print $temp $body;
@@ -549,9 +534,9 @@ sub check_compression_private
         else {
             my $uncomp_size = length $uncompressed;
             my $percent_comp = sprintf ("%.1f%%", (100 * length ($body)) / $uncomp_size);
-            $o->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'. The uncompressed size is $uncomp_size. The compressed output is $percent_comp of the uncompressed size.");
+            $self->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'. The uncompressed size is $uncomp_size. The compressed output is $percent_comp of the uncompressed size.");
             
-            $o->{run_options}->{body} = $uncompressed;
+            $self->{run_options}->{body} = $uncompressed;
         }
     }
     if ($verbose) {
@@ -647,15 +632,15 @@ sub run
 
 sub tidy_files
 {
-    my ($o) = @_;
-    if ($o->{infile}) {
-	unlink $o->{infile} or die $!;
+    my ($self) = @_;
+    if ($self->{infile}) {
+	unlink $self->{infile} or die $!;
     }
 
     # Insert HTML test here?
 
-    unlink $o->{outfile} or die $!;
-    unlink $o->{errfile} or die $!;
+    unlink $self->{outfile} or die $!;
+    unlink $self->{errfile} or die $!;
 }
 
 sub tfilename
@@ -667,68 +652,83 @@ sub tfilename
 
 sub run3
 {
-    my ($o, $exe) = @_;
+    my ($self, $exe) = @_;
     my $cmd = "@$exe";
-    if (defined $o->{input}) {
-	$o->{infile} = tfilename ();
-	open my $in, ">:raw", $o->{infile} or die $!;
-	print $in $o->{input};
+    if (defined $self->{input}) {
+	$self->{infile} = tfilename ();
+	open my $in, ">:raw", $self->{infile} or die $!;
+	print $in $self->{input};
 	close $in or die $!;
-	$cmd .= " < " . $o->{infile};
+	$cmd .= " < " . $self->{infile};
     }
     my $out;
-    ($out, $o->{outfile}) = tempfile ("/tmp/output-XXXXXX");
+    ($out, $self->{outfile}) = tempfile ("/tmp/output-XXXXXX");
     close $out or die $!;
     my $err;
-    ($err, $o->{errfile}) = tempfile ("/tmp/errors-XXXXXX");
+    ($err, $self->{errfile}) = tempfile ("/tmp/errors-XXXXXX");
     close $err or die $!;
   
-    my $status = system ("$cmd > $o->{outfile} 2> $o->{errfile}");
+    my $status = system ("$cmd > $self->{outfile} 2> $self->{errfile}");
 
-    $o->{output} = '';
-    if (-f $o->{outfile}) {
-	open my $out, "<", $o->{outfile} or die $!;
+    $self->{output} = '';
+    if (-f $self->{outfile}) {
+	open my $out, "<", $self->{outfile} or die $!;
 	while (<$out>) {
-	    $o->{output} .= $_;
+	    $self->{output} .= $_;
 	}
 	close $out or die $!;
     }
-    $o->{errors} = '';
-    if (-f $o->{errfile}) {
-	open my $err, "<", $o->{errfile} or die $!;
+    $self->{errors} = '';
+    if (-f $self->{errfile}) {
+	open my $err, "<", $self->{errfile} or die $!;
 	while (<$err>) {
-	    $o->{errors} .= $_;
+	    $self->{errors} .= $_;
 	}
 	close $err or die $!;
     }
 
-#    print "OUTPUT IS $o->{output}\n";
+#    print "OUTPUT IS $self->{output}\n";
 #    print "$$errors\n";
 #    exit;
 
     return $status;
 }
 
+sub set_html_validator
+{
+    my ($self, $hvc) = @_;
+    if (! $hvc) {
+	carp "Invalid value for validator";
+	return;
+    }
+    if (! -x $hvc) {
+	carp "$hvc doesn't seem to be an executable program";
+    }
+    $self->{html_validator} = $hvc;
+}
+
 sub validate_html
 {
-    my ($o) = @_;
+    my ($self) = @_;
+    my $html_validator = $self->{html_validator};
+    if (! $html_validator || ! -x $html_validator) {
+	warn "HTML validation could not be completed, set validator to executable program using \$tce->set_html_validator ('command')";
+	return;
+    }
     my $html_validate = "$Bin/html-validate-temp-out.$$";
     my $html_temp_file = "$Bin/html-validate-temp.$$.html";
     open my $htmltovalidate, ">:encoding(utf8)", $html_temp_file or die $!;
-    print $htmltovalidate $o->{run_options}->{body};
+    print $htmltovalidate $self->{run_options}->{body};
     close $htmltovalidate or die $!;
-    my $status = system ("/home/ben/bin/validate $html_temp_file > $html_validate");
+    my $status = system ("$html_validator $html_temp_file > $html_validate");
     
+    $self->do_test (! -s $html_validate, "HTML is valid");
     if (-s $html_validate) {
-	$o->fail_test ("HTML is valid");
 	open my $in, "<", $html_validate or die $!;
 	while (<$in>) {
-	    print ($_);
+	    print ("# $_");
 	}
 	close $in or die $!;
-    }
-    else {
-	$o->pass_test ("HTML is valid");
     }
     unlink $html_temp_file or die $!;
     if (-f $html_validate) {
@@ -738,14 +738,14 @@ sub validate_html
 
 sub validate_json
 {
-    my ($o) = @_;
-    my $json = $o->{run_options}->{body};
+    my ($self) = @_;
+    my $json = $self->{run_options}->{body};
     my $valid = valid_json ($json);
     if ($valid) {
-	$o->pass_test ("Valid JSON");
+	$self->pass_test ("Valid JSON");
     }
     else {
-	$o->fail_test ("Valid JSON");
+	$self->fail_test ("Valid JSON");
     }
 }
 
