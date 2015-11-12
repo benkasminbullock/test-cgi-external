@@ -145,6 +145,8 @@ sub test_if_modified_since
     run_private ($self);
     $self->check_headers_private ($self);
     my $headers = $run_options{headers};
+    my $body = $run_options{body};
+    $self->do_test (length ($body) == 0, "No body returned with 304 response");
     # Restore this to whatever it was, probably "undef".
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.

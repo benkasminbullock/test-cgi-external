@@ -505,6 +505,12 @@ which it supplied in the above test. Because this is CGI, the
 If-Modified-Since header is supplied to your CGI program using the
 environment variable C<HTTP_IF_MODIFIED_SINCE>.
 
+=item * The CGI is not producing a body
+
+It is tested whether the CGI is producing a body after it produces the
+304 response described above. There should not be any body, just
+headers, in this situation.
+
 =back
 
 =item (Optional) The output is valid HTML
@@ -639,6 +645,36 @@ The module also used to depend on L<IPC::Run3>, but there were some
 issues with this module messing around with the global variables. It
 does something like C<binmode STDOUT>, which interferes with other
 parts of the program, so that had to be removed.
+
+=head1 SEE ALSO
+
+=over
+
+=item L<Test::More>
+
+Test::CGI::External is built on top of the Test::More framework for
+testing Perl programs, so you need to have some familiarity with that.
+
+=item L<CGI::Test>
+
+This is similar in some ways to Test::CGI::External, but CGI::Test
+doesn't test for the very basic problems (non-executable files, stray
+printf statements, etc.) that Test::CGI::External does, and if it
+detects problems like these, it dies, rather than making them into
+pass and fail tests.
+
+Compared to this, Test::CGI::External's philosophy might be described
+as "anything which can go wrong, will go wrong" and it uses the "test"
+channel to check that the most basic kinds of problems are not
+occurring, rather than dieing or otherwise failing. CGI::Test just
+runs the CGI program for you and returns its output for you to test
+yourself.
+
+Pluses about this module are that it seems to offer much better
+sanitization of the environment than Test::CGI::External. (See also
+L</BUGS>.)
+
+=back
 
 =head1 HISTORY
 
