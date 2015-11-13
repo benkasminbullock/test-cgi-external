@@ -11,14 +11,9 @@ use Carp;
 use Encode 'decode';
 use File::Temp 'tempfile';
 use FindBin '$Bin';
-use Gzip::Faster;
-use HTTP::Date;
-use JSON::Parse 'valid_json';
 use Test::Builder;
-use Unicode::UTF8 qw/decode_utf8 encode_utf8/;
-#use Path::Tiny;
 
-our $VERSION = '0.11';
+our $VERSION = '0.11_01';
 
 sub new
 {
@@ -51,7 +46,7 @@ sub on_off_msg
 	else {
 	    $msg .= "off";
 	}
-	$msg .= "testing of $type";
+	$msg .= " testing of $type";
 	my (undef, $file, $line) = caller ();
         $self->{tb}->note ("$file:$line: $msg");
     }
@@ -85,6 +80,15 @@ sub do_compression_test
     $switch = !! $switch;
     $self->on_off_msg ($switch, "compression");
     $self->{comp_test} = $switch;
+    if ($switch && ! $self->{_use_io_uncompress_gunzip}) {
+	eval "use Gzip::Faster;";
+	if ($@) {
+	    $self->{_use_io_uncompress_gunzip} = 1;
+	    if (! $self->{no_warn}) {
+		carp "Gzip::Faster is not installed, using IO::Uncompress::Gunzip";
+	    }
+	}
+    }
 }
 
 sub do_caching_test
@@ -93,11 +97,29 @@ sub do_caching_test
     $switch = !! $switch;
     $self->on_off_msg ($switch, "if-modified/last-modified response");
     $self->{cache_test} = $switch;
+    if ($switch) {
+	eval {
+	    require HTTP::Date;
+	};
+	if ($@) {
+	    if (! $self->{no_warn}) {
+		carp "HTTP::Date is not installed, cannot do caching test";
+	    }
+	    $self->{cache_test} = undef;
+	}
+    }
 }
 
 sub expect_charset
 {
     my ($self, $charset) = @_;
+    eval "use Unicode::UTF8 qw/decode_utf8 encode_utf8/";
+    if ($@) {
+	Encode->import (qw/decode_utf8 encode_utf8/);
+	if (! $self->{no_warn}) {
+	    carp "No Unicode::UTF8, falling back to Encode";
+	}
+    }
     $self->note ("You have told me to expect a 'charset' value of '$charset'.");
     $self->{expected_charset} = $charset;
 }
@@ -510,6 +532,32 @@ sub check_headers_private
     $self->{run_options}->{body} = $body;
 }
 
+# This is "safe" in the sense that it falls back to using
+# IO::Uncompress::Gunzip if it can't find Gzip::Faster. However, it
+# throws an exception if it fails, so it's not really "safe".
+
+sub gunzip_safe
+{
+    my ($self, $content) = @_;
+    my $out;
+    if ($self->{_use_io_uncompress_gunzip}) {
+	# gunzip_safe is called within an eval block. It's possible
+	# that the require might fail, but trying to fix these kinds
+	# of problems goes beyond the scope of this module.
+	eval "use IO::Uncompress::Gunzip;";
+	my $status = IO::Uncompress::Gunzip::gunzip (\$content, \$out);
+	if (! $status) {
+	    die "IO::Uncompress::Gunzip failed: $IO::Uncompress::Gunzip::GunzipError";
+	}
+    }
+    else {
+	# We have already loaded Gzip::Faster within
+	# do_compression_test.
+	$out = Gzip::Faster::gunzip ($content);
+    }
+    return $out;
+}
+
 sub check_compression_private
 {
     my ($self) = @_;
@@ -527,7 +575,7 @@ sub check_compression_private
         my $uncompressed;
         #printf "The length of the body is %d\n", length ($body);
 	eval {
-	    $uncompressed = gunzip $body;
+	    $uncompressed = $self->gunzip_safe ($body);
 	};
         if ($@) {
             $self->fail_test ("Output claims to be in gzip format but gunzip on the output failed with the error '$@'");
@@ -570,7 +618,9 @@ sub run
     }
     if (! $options) {
         $self->{run_options} = {};
-        carp "You have requested me to run a CGI executable with 'run' without specifying a hash reference to store the input, output, and error output. I can only run basic tests of correctness";
+	if (! $self->{no_warn}) {
+	    carp "You have requested me to run a CGI executable with 'run' without specifying a hash reference to store the input, output, and error output. I can only run basic tests of correctness";
+	}
     }
     else {
         $self->{run_options} = $options;
@@ -721,11 +771,15 @@ sub set_html_validator
 {
     my ($self, $hvc) = @_;
     if (! $hvc) {
-	carp "Invalid value for validator";
+	if (! $self->{no_warn}) {
+	    carp "Invalid value for validator";
+	}
 	return;
     }
     if (! -x $hvc) {
-	carp "$hvc doesn't seem to be an executable program";
+	if (! $self->{no_warn}) {
+	    carp "$hvc doesn't seem to be an executable program";
+	}
     }
     $self->{html_validator} = $hvc;
 }

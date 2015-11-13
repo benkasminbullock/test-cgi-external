@@ -1,5 +1,10 @@
 Revision history for perl module Test::CGI::External
 
+0.10_01 2015-11-13
+
+- Reduce dependencies, fall back to core modules when available
+- Optionally switch off warnings
+
 0.10 2015-11-06
 
 - The caching tests were documented.

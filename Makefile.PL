@@ -32,6 +32,16 @@ WriteMakefile1(
 	    },
 #	    homepage => 'http://',
         },
+	prereqs => {
+	    runtime => {
+		recommends => {
+		    'Gzip::Faster' => '0.08',
+		    'HTTP::Date' => '6.02',
+		    'JSON::Parse' => '0.38',
+		    'Unicode::UTF8' => '0.60',
+		},
+	    },
+	},
     },
     #BUILD_REQUIRES => {
     #},
@@ -42,13 +52,9 @@ WriteMakefile1(
 	# Added the latest versions, earlier ones may also be
 	# compatible.
 	'Encode' => 0,
-	'Gzip::Faster' => '0.08',
-	'HTTP::Date' => '6.02',
-	'JSON::Parse' => '0.38',
 	'Test::Builder' => 0,
 	'Test::Tester' => '0.109',
         'Test::More' => 0,
-	'Unicode::UTF8' => '0.60',
     },
 );
 
