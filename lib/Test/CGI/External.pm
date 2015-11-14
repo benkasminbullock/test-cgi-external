@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.11_01';
+our $VERSION = '0.10_01';
 
 sub new
 {
@@ -98,9 +98,7 @@ sub do_caching_test
     $self->on_off_msg ($switch, "if-modified/last-modified response");
     $self->{cache_test} = $switch;
     if ($switch) {
-	eval {
-	    require HTTP::Date;
-	};
+	eval "use HTTP::Date;";
 	if ($@) {
 	    if (! $self->{no_warn}) {
 		carp "HTTP::Date is not installed, cannot do caching test";
@@ -157,6 +155,8 @@ sub test_if_modified_since
     my $saved = $ENV{HTTP_IF_MODIFIED_SINCE};
     $ENV{HTTP_IF_MODIFIED_SINCE} = $last_modified;
     $self->note ("Testing response with last modified time $last_modified");
+    my $saved_no_check_content = $self->{no_check_content};
+    $self->{no_check_content} = 1;
     # Copy the hash of options into a private copy, so that we can run
     # the thing again without overwriting our precious stuff.
     my $saved_run_options = $self->{run_options};
@@ -167,6 +167,7 @@ sub test_if_modified_since
     run_private ($self);
     $self->check_headers_private ($self);
     my $headers = $run_options{headers};
+    $self->do_test ($headers->{status} =~ /304/, "Got 304 status response");
     my $body = $run_options{body};
     $self->do_test (length ($body) == 0, "No body returned with 304 response");
     # Restore this to whatever it was, probably "undef".
@@ -174,6 +175,7 @@ sub test_if_modified_since
     # Restore our precious stuff.
     $self->{run_options} = $saved_run_options;
     $self->{no_warn} = $saved_no_warn;
+    $self->{no_check_content} = $saved_no_check_content;
 }
 
 sub check_caching_private
@@ -283,6 +285,15 @@ sub setenv_private
     $ENV{$name} = $value;
 }
 
+sub encode_utf8_safe
+{
+    eval "use Unicode::UTF8;";
+    if ($@) {
+	return Encode::encode_utf8 (@_);
+    }
+    return Unicode::UTF8::encode_utf8 (@_);
+}
+
 # Internal routine to run a CGI program.
 
 sub run_private
@@ -329,7 +340,7 @@ sub run_private
     if (defined $options->{input}) {
         $self->{input} = $options->{input};
 	if (utf8::is_utf8 ($self->{input})) {
-	    $self->{input} = encode_utf8 ($self->{input});
+	    $self->{input} = encode_utf8_safe ($self->{input});
 	}
         my $content_length = length ($self->{input});
         setenv_private ($self, 'CONTENT_LENGTH', $content_length);

@@ -6,39 +6,20 @@ Test::CGI::External - run tests on an external CGI program
 
 =head1 SYNOPSIS
 
-    use Test::More;
-    use Test::CGI::External;
+[% INCLUDE "examples/synopsis.pl" | xtidy %]
 
-    my $tester = Test::CGI::External->new ();
+produces output like this:
 
-    $tester->set_cgi_executable ("x.cgi");
-
-    my %options;
-
-    # Automatically tests
-
-    $tester->run (\%options);
-
-    # Test with a query
-
-    $options{REQUEST_METHOD} = 'GET';
-    $options{QUERY_STRING} = 'text="alcohol"';
-    $tester->run (\%options);
-
-    # Test compression of output
-
-    $tester->do_compression_test (1);
-    $tester->run (\%options);
-
-    done_testing ();
+[% INCLUDE "examples/synopsis-out.txt" | xtidy %]
 
 After the test has run, the uncompressed output is in
 C<$options{body}>.
 
 =head1 DESCRIPTION
 
-Test::CGI::External is a tool for running basic checks of the
-operation of a CGI (common gateway interface) program. For example,
+Test::CGI::External is a tool for mocking a CGI (common gateway
+interface) environment and running basic checks of the operation of a
+CGI program. For example,
 
     use Test::More;
     my $tester = Test::CGI::External->new ();
@@ -50,25 +31,34 @@ tests whether
 
 =over
 
-=item * there is a program called F<example.cgi>
+=item * there is a program called F<example.cgi>,
 
-=item * the program F<example.cgi> is executable (except on Windows)
-
-=item * when run, F<example.cgi> produces a correct C<Content-Type> header
-
-=item * when run, F<example.cgi> does not print out ill-formed headers (for example, print
-debugging messages on standard output)
-
-=item * when run, F<example.cgi> exits with a zero status
-
-=item * when run, F<example.cgi> does not print any error messages
+=item * the program F<example.cgi> is executable (except on Windows),
 
 =back
 
-In other words, this tests for extremely simple "slip-up" mistakes,
-such as forgetting to install the program, forgetting to make it
-executable, leaving print statements before the headers are printed,
-or error messages during running.
+and when run, F<example.cgi> 
+
+=over
+
+=item * produces something on standard output;
+
+=item * produces a correct C<Content-Type> header;
+
+=item * does not print out ill-formed headers (for example, print
+debugging messages on standard output);
+
+=item * exits with a zero status;
+
+=item * does not print any error messages.
+
+=back
+
+In other words, Test::CGI::External tests for extremely simple
+"slip-up" mistakes, such as forgetting to install the program,
+forgetting to make it executable, leaving print statements before the
+headers are printed, exiting without printing output, or printing
+useless error messages during running.
 
 Test::CGI::External runs CGI programs as stand-alone programs, under a
 faked CGI-like environment created by manipulating environment
@@ -79,17 +69,67 @@ itself. Test::CGI::External was originally created to check the
 operation of CGI programs written in C.
 
 Test::CGI::External is meant for the testing stage before the program
-is put onto a web server. One of the main errors this module catches
-for the author is stray printf statements. If a program with stray
-printf statements is uploaded to the web server and run as a CGI
-program, the browser will show only a 500 Server Error
-message. Another typical mistake is forgetting to make the CGI program
-executable; again, this results in a weird server error.
+is put onto a web server. For example, if a program with stray printf
+statements is uploaded to the web server and run as a CGI program, the
+browser will show only a 500 Server Error message. Another typical
+mistake is forgetting to make the CGI program executable; again, this
+results in a difficult-to-understand server error, so this module nips
+the problem in the bud by checking before the uploading.
 
 Test::CGI::External is TAP (Test Anything Protocol)-compliant and
 should work with Perl testing modules like L<Test::More>.
 
 =head1 METHODS
+
+These are the main methods you need to run tests.
+
+=head2 new
+
+    my $tester = Test::CGI::External->new ();
+
+Create a new testing object.
+
+=head2 plan
+
+Print the TAP (Test Anything Protocol) plan. This has to be done at
+the end of the execution. As shown in the L</SYNOPSIS>, you usually
+don't have to print this but can use "done_testing" from L<Test::More>
+since this module uses L<Test::Builder> internally.
+
+=head2 run
+
+    $tester->run (\%options);
+
+Run the cgi executable specified using L</set_cgi_executable> with the
+inputs specified in C<%options>. The argument must be a hash
+reference. See L</Possible options> for possible options. See
+L</Outputs> for outputs. Here is an example:
+
+[% INCLUDE "rupert.pl" | xtidy %]
+
+produces
+
+[% INCLUDE "rupert-out.txt" | xtidy %]
+
+You can also use run without an argument to do basic tests,
+but it will print warnings. Use L</set_no_warnings> to stop it
+printing these.
+
+=head2 set_cgi_executable
+
+    $tester->set_cgi_executable ('my.cgi');
+
+Set the CGI program to be tested to F<my.cgi>. This checks whether the
+file exists and is executable, and prints a warning if either of these
+checks fails. It's also possible to send command-line options to the
+program. Things after the name of the executable are sent as
+command-line options to the CGI program:
+
+    $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
+
+=head1 TEST OPTION METHODS
+
+These methods control test options.
 
 =head2 do_caching_test
 
@@ -99,7 +139,17 @@ Turn on or off testing of caching. If this test is "on", the CGI
 executable will be tested for producing a "Last-Modified: " header
 with a correctly-formatted date, and to be able to respond with a 304
 "Not modified" response when sent an identical query and a date later
-than its "Last-Modified" date.
+than its "Last-Modified" date. This requires L<HTTP::Date> to be
+installed.
+
+Here is an example, using a CGI program which always claims not to be
+modified when asked:
+
+[% INCLUDE "never-modified.pl" | xtidy %]
+
+outputs
+
+[% INCLUDE "never-modified-out.txt" | xtidy %]
 
 This method was added in version 0.10 of this module.
 
@@ -110,7 +160,8 @@ This method was added in version 0.10 of this module.
 Turn on or off testing of compression of the output of the CGI program
 which is being tested. Give any true value as the first argument to
 turn on compression testing. Give any false value to turn off
-compression testing. Tests are done via L<Gzip::Faster>.
+compression testing. This requires either L<Gzip::Faster> or
+L<IO::Uncompress::Gunzip> to be installed.
 
 Prior to version 0.07 of this module, these tests were done by
 L<IO::Uncompress::Gunzip>.
@@ -131,25 +182,20 @@ also added as a pass or fail test:
 
 adds a test for decoding from the EUC-JP encoding.  
 
+This requires either L<Unicode::UTF8> or L<Encode> to be installed.
+
 This behaviour is new in version 0.08 of this module. Prior to version
-0.08, C<$output{body}> was not upgraded to C<utf8>.
+0.08, C<$output{body}> was not upgraded to C<utf8>. Note that if you
+do not set any expected character set, no upgrading is done.
 
 =head2 expect_mime_type
 
     $tester->expect_mime_type ('text/html');
 
-Tell the tester what mime type to expect. This sets up a test for mime
-types.
+Tell C<$tester> what mime type to expect on the C<Content-Type> line
+of the header. A test is run that the mime type is what you said.
 
 This method is new in version 0.11 of this module.
-
-=head2 set_no_warnings
-
-    $tester->set_no_warnings (1);
-
-Turn off the many and verbose warning messages this module prints if
-it thinks you're doing something wrong. Although the warnings are
-annoying, I suggest being cautious about turning these off.
 
 =head2 set_html_validator
 
@@ -165,48 +211,6 @@ L</BUGS> for why this is done this way.
 
 This interface was added in version 0.10 of this module.
 
-=head2 new
-
-    my $tester = Test::CGI::External->new ();
-
-Create a new testing object.
-
-=head2 plan
-
-Print the TAP (Test Anything Protocol) plan. This has to be done at
-the end of the execution. You usually don't have to print this but can
-use "done_testing" from L<Test::More> since this module uses
-L<Test::Builder> internally.
-
-=head2 run
-
-    my %options;
-    $options{QUERY_STRING} = "q=rupert+the+bear";
-    $tester->run (\%options);
-
-Run the cgi executable specified using L</set_cgi_executable> with the
-inputs specified in C<%options>. See L</Possible options> for possible
-options. See L</Outputs> for outputs.
-
-=head2 set_cgi_executable
-
-    $tester->set_cgi_executable ('my.cgi');
-
-Set the CGI program to be tested to F<my.cgi>. This checks whether the
-file exists and is executable, and prints a warning if either of these
-checks fails. It's also possible to send command-line options to the
-program. Things after the name of the executable are sent as
-command-line options to the CGI program.
-
-    $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
-
-=head2 set_verbosity
-
-    $tester->set_verbosity (1);
-
-This turns on or off messages from the module informing you of what it
-is doing.
-
 =head2 set_no_check_content
 
     $tester->set_no_check_content (1);
@@ -215,6 +219,23 @@ This turns off testing of the "Content-Type" HTTP header. For example
 if you want to send redirects or "not modified" responses, you usually
 will not send any content, but just the HTTP headers, so you don't
 need a "Content-Type" header.
+
+=head2 set_no_warnings
+
+    $tester->set_no_warnings (1);
+
+Setting this to any true value turns off all the warnings. Setting
+this to a false value restores the warnings. Although the warnings are
+annoying, I suggest being cautious about turning these off.
+
+This interface was added in version 0.11 of this module.
+
+=head2 set_verbosity
+
+    $tester->set_verbosity (1);
+
+This turns on or off messages from the module informing you of what it
+is doing. The default is "off".
 
 =head1 INPUT AND OUTPUT
 
@@ -281,7 +302,7 @@ test run.
 
 Input to send to the CGI program with a POST request. The environment
 variable CONTENT_LENGTH in the CGI program is automatically set to the
-length of this variable. See also L</BUGS>.
+length of this variable. See also L</content_length>.
 
 =item json
 
@@ -328,15 +349,18 @@ This option may be set to one of POST, GET and HEAD. The module then
 sets the environment variable REQUEST_METHOD to this value. If not set
 at all, the module sets it to a default and prints a warning
 message. You can also set this to any other value you want, like
-C<OPTIONS> or something, but the module prints a warning
-message. There is currently no way to switch off the warnings. See
-also L</BUGS>.
+C<OPTIONS> or something, but the module prints a warning message. You
+can switch off the warning using L</set_no_warnings>.
 
 =back
 
 =head2 Outputs
 
-The various outputs of the CGI program are also put into C<%options>.
+The various outputs of the CGI program are also put into
+C<%options>. The entire output is available as L</output>, the entire
+error output is available as L</error_output>, and the parsed and
+processed output is available as L</body>, L</header>, and
+L</headers>.
 
 =over
 
@@ -358,7 +382,13 @@ The content length of your input in bytes, if you are making a C<POST>
 request. Note that this is the length in bytes, so it may differ from
 the return value of Perl's length function.
 
+For example,
+
 [% INCLUDE "length.pl" | xtidy %]
+
+outputs
+
+[% INCLUDE "length-out.txt" | xtidy %]
 
 =item error_output
 
@@ -398,6 +428,8 @@ The received headers, parsed and put into lower case, with the
 key/value pairs of the hash reference C<$headers> being the keys and
 values from the HTTP header.
 
+This output was added in version 0.09 of this module.
+
 =item output
 
     $test->run (\%options);
@@ -413,71 +445,75 @@ contain binary compressed data. It is also not upgraded into Unicode.
 
 The following tests are applied. "Must-pass" tests cannot be switched
 off. "Skippable" tests can be skipped if you choose. "Optional" tests
-are not run unless you request them.
+are not run unless you request them. "Invertible" tests can be made to
+test the opposite result.
 
 =over
 
-=item (Must-pass) CGI executable exists
+=item CGI executable exists (Must-pass) 
 
 This test is run by L</set_cgi_executable>.
 
-=item (Must-pass) CGI executable is an executable file
+=item CGI executable is an executable file (Must-pass) 
 
 This test is run by L</set_cgi_executable>. This test is skipped on Windows.
 
-=item (Skippable) The exit status of the CGI program is zero
+=item The exit status of the CGI program is zero (Skippable) 
 
 This test is run by L</run>. It may be skipped using L</expect_failure>.
 
-=item (Must-pass) The program has produced output
+=item The program has produced output (Must-pass)
 
-This test is run by L</run>.
+This test is run by L</run>. This tests for the problem that the
+program has exited without producing any output whatsoever, not that
+the program has not produced correctly formatted message body or
+headers.
 
-=item (Skippable) The program does not produce error output
+=item The program does not produce error output (Invertible)
 
 This test is run by L</run>. It may be inverted using
 L</expect_errors>. It's meant to catch things like stray fprintf
 statements in the executable.
 
-=item (Must-pass) The program has printed headers
+=item The program has printed headers (Must-pass)
 
 This test is run by L</run>. This tests for some headers followed by a
 blank line.
 
-=item (Must-pass) Each header is correctly formatted
+=item Each header is correctly formatted (Must-pass)
 
 This test is run by L</run>. It's meant to catch things like stray
 printf statements in the executable, or forgetting to print a
 header. The header format is as defined by L</Specification for HTTP
 headers>. Each line of the header is checked as a separate test.
 
-=item (Skippable) The program has printed a Content-Type header
+=item The program has printed a Content-Type header (Skippable)
 
 This test is run by L</run>. It may be skipped using L</no_check_content>.
 
-=item (Optional) The mime type in the Content-Type header is what you want
+=item The mime type in the Content-Type header is what you want (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
 L</expect_mime_type> method.
 
-=item (Optional) The charset parameter of the Content-Type header is what you want
+=item The charset parameter of the Content-Type header is what you want (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
 L</expect_charset> method.
 
-=item (Optional) The body of the output is compressed
+=item The body of the output is compressed (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
 L</do_compression_test> method. This only supports C<gzip> encodings.
 
-=item (Optional) The body of the output is in the encoding you specified
+=item The body of the output is in the encoding you specified (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
 L</expect_charset> method. If the parameter set by L</expect_charset>
 is not UTF-8, it runs a test that the encoding of the output is as
 expected.
 
-=item (Optional) Caching works correctly
+=item Caching works correctly (Optional)
 
 This test is run by L</run>. It is an optional test switched on by
 L</do_caching_test>. It tests the following:
@@ -513,7 +549,7 @@ headers, in this situation.
 
 =back
 
-=item (Optional) The output is valid HTML
+=item The output is valid HTML (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
 L</html> parameter. You also need to supply your own HTML validator
@@ -521,7 +557,7 @@ using the C<set_html_validator> parameter. You should also set the
 expected mime type to C<text/html> with L</expect_mime_type> if you
 use this.
 
-=item (Optional) The output is valid JSON.
+=item The output is valid JSON. (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
 L</json> parameter.  You should also set the expected mime type to
@@ -544,20 +580,12 @@ options>) is somewhat messy.
 There are too many warnings which cannot be switched off, e.g. the
 request method warnings.
 
-The examples in this documentation are not machine-readable, and thus
-probably contain many errors. (L<JSON::Create> is an example of a
-module with documentation I think is good, because it's all extracted
-from actual example programs, which are test-run during the build.)
-
 The module has very few tests.
 
 No check for MD5 checksums. For completeness, there probably should be
 a check for this.
 
 Not adapted for Microsoft Windows.
-
-The program does not check the mime type in the Content-Type line,
-despite having tests for HTML and JSON validity.
 
 I wanted to include an example validator program in this distribution
 but I cannot find anything remotely useable on CPAN. For example
@@ -574,9 +602,81 @@ The program doesn't sanitize %ENV, but it probably should do.
 The number of tests is not really fixed, so the older way of using
 Test::More with a plan won't work with this module.
 
-The HTML validator writes into C<$Bin>.
+The HTML validator writes into C<$Bin> rather than using File::Temp or
+similar.
+
+=head1 DEPENDENCIES
+
+This module depends on
+
+=over
+
+=item L<Carp>
+
+Carp is used to print error messages.
+
+=item L<Encode>
+
+Encode is used for converting charset encodings into Unicode. It's not
+necessary unless you use L</expect_charset> but it is included as a
+dependency since almost every Perl installation will have it.
+
+=item L<File::Temp>
+
+File::Temp is used for the temporary files which store the input,
+output, and error stream of the CGI program.
+
+=item L<Test::Builder>
+
+Test::Builder is used for the testing framework.
+
+=back
+
+=head2 Optional
+
+Test::CGI::External uses the following modules to do optional tests
+(see L</TESTS APPLIED>).
+
+=over
+
+=item L<Gzip::Faster>
+
+It is used to do the compression testing, so you don't need this
+unless you choose L</do_compression_test>.
+
+=item L<HTTP::Date>
+
+HTTP::Date is used to check the dates, if you check caching with
+L</do_caching_test>.
+
+=item L<IO::Uncompress::Gunzip>
+
+It is used to do the compression testing, so you don't need this
+unless you choose L</do_compression_test>. This module is used as a
+fallback if you don't have Gzip::Faster. It is used because it's a
+core Perl module, so most people will have this installed.
+
+=item L<JSON::Parse>
+
+JSON::Parse is used to test JSON for validity, if you choose to check
+JSON with L</json>.
+
+=item L<Unicode::UTF8>
+
+Optionally, Unicode::UTF8 is used for converting UTF-8 encodings into
+Perl's internal Unicode, if you set the charset to UTF-8 with
+L</expect_charset>. If you don't have this, it falls back to Encode.
+
+=back
+
+The module also used to depend on L<IPC::Run3>, but there were some
+issues with this module messing around with the global variables. It
+does something like C<binmode STDOUT>, which interferes with other
+parts of the program, so that had to be removed.
 
 =head1 SEE ALSO
+
+=head2 Specifications used
 
 =over
 
@@ -601,54 +701,7 @@ web design class.)
 
 =back
 
-=head1 DEPENDENCIES
-
-This module depends on
-
-=over
-
-=item L<Carp>
-
-Carp is used to print error messages.
-
-=item L<Encode>
-
-Encode is used for converting non-UTF-8 encodings into Unicode.
-
-=item L<Gzip::Faster>
-
-It is used to do the compression testing.
-
-=item L<File::Temp>
-
-File::Temp is used for the temporary files which store the input,
-output, and error stream of the CGI program.
-
-=item L<HTTP::Date>
-
-HTTP::Date is used to check the dates, if you check caching.
-
-=item L<JSON::Parse>
-
-JSON::Parse is used to test JSON for validity.
-
-=item L<Test::Builder>
-
-For testing framework.
-
-=item L<Unicode::UTF8>
-
-Unicode::UTF8 is used for converting UTF-8 encodings into Perl's
-internal Unicode.
-
-=back
-
-The module also used to depend on L<IPC::Run3>, but there were some
-issues with this module messing around with the global variables. It
-does something like C<binmode STDOUT>, which interferes with other
-parts of the program, so that had to be removed.
-
-=head1 SEE ALSO
+=head2 Other CPAN modules
 
 =over
 
@@ -659,22 +712,30 @@ testing Perl programs, so you need to have some familiarity with that.
 
 =item L<CGI::Test>
 
-This is similar in some ways to Test::CGI::External, but CGI::Test
-doesn't test for the very basic problems (non-executable files, stray
-printf statements, etc.) that Test::CGI::External does, and if it
-detects problems like these, it dies, rather than making them into
-pass and fail tests.
+This is similar in some ways to Test::CGI::External, but with the following differences
+
+=over 
+
+=item Much more comprehensive mocking of environment
+
+CGI::Test works really hard to generate a complete mock CGI
+environment, including sanitizing the environment variables in
+C<%ENV>. Test::CGI::External is lazy about this. (See also L</BUGS>.)
+
+=item Throws exceptions rather than tests
+
+CGI::Test doesn't test for the very basic problems (non-executable
+files, stray printf statements, etc.) that Test::CGI::External does,
+and if it detects problems like these, it dies (throws exceptions),
+rather than making them into pass and fail tests.
 
 Compared to this, Test::CGI::External's philosophy might be described
 as "anything which can go wrong, will go wrong" and it uses the "test"
 channel to check that the most basic kinds of problems are not
-occurring, rather than dieing or otherwise failing. CGI::Test just
-runs the CGI program for you and returns its output for you to test
-yourself.
+occurring, rather than throwing exceptions. CGI::Test just runs the
+CGI program for you and returns its output for you to test yourself.
 
-Pluses about this module are that it seems to offer much better
-sanitization of the environment than Test::CGI::External. (See also
-L</BUGS>.)
+=back
 
 =back
 
@@ -700,7 +761,9 @@ C<die_on_failure>, which had already been made invalid by the move to
 Test::Builder.
 
 Version 0.11 added support for testing mime types with
-L</expect_mime_type>.
+L</expect_mime_type> and offered a way to sidestep the nag messages
+with L</set_no_warnings>. It also reduced the number of dependencies,
+most of which were only needed for optional tests.
 
 [% start_year='2011' %]
 [% INCLUDE "author" %]

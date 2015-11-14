@@ -47,7 +47,7 @@ for my $example (@examples) {
     my $output = $example;
     $output =~ s/\.pl$/-out.txt/;
     if (older ($output, $example) || $force) {
-	do_system ("perl -I$Bin/blib/lib -I$Bin/blib/arch $example > $output", $verbose);
+	do_system ("perl -I$Bin/blib/lib -I$Bin/blib/arch $example > $output 2>&1", $verbose);
     }
 }
 
