@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.10_01';
+our $VERSION = '0.10_02';
 
 sub new
 {
@@ -114,8 +114,9 @@ sub expect_charset
     eval "use Unicode::UTF8 qw/decode_utf8 encode_utf8/";
     if ($@) {
 	Encode->import (qw/decode_utf8 encode_utf8/);
-	if (! $self->{no_warn}) {
-	    carp "No Unicode::UTF8, falling back to Encode";
+	if (! $self->{no_warn} && ! $self->{_warned_unicode_utf8}) {
+	    carp "Unicode::UTF8 is not installed, using Encode";
+	    $self->{_warned_unicode_utf8} = 1;
 	}
     }
     $self->note ("You have told me to expect a 'charset' value of '$charset'.");
@@ -289,7 +290,13 @@ sub encode_utf8_safe
 {
     eval "use Unicode::UTF8;";
     if ($@) {
-	return Encode::encode_utf8 (@_);
+	if (! $self->{no_warn} && ! $self->{_warned_unicode_utf8}) {
+	    carp "Unicode::UTF8 is not installed, using Encode";
+	    $self->{_warned_unicode_utf8} = 1;
+	}
+	# Encode::encode_utf8 uses prototypes so we have to hassle this up.
+	my ($input) = @_;
+	return Encode::encode_utf8 ($input);
     }
     return Unicode::UTF8::encode_utf8 (@_);
 }

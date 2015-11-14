@@ -142,6 +142,12 @@ with a correctly-formatted date, and to be able to respond with a 304
 than its "Last-Modified" date. This requires L<HTTP::Date> to be
 installed.
 
+The test of the "Not modified" part is sandboxed away from the normal
+testing, so at the completion of L</run>, the outputs are from the
+first run, where the program was not responding to "If Modified
+Since", rather than the second run. Warnings are also switched off
+during the "If Modified Since" part of the testing.
+
 Here is an example, using a CGI program which always claims not to be
 modified when asked:
 
@@ -577,9 +583,6 @@ disorganized (see also L</HISTORY>).
 The mixture of methods (see L</METHODS>) and options (see L</Possible
 options>) is somewhat messy.
 
-There are too many warnings which cannot be switched off, e.g. the
-request method warnings.
-
 The module has very few tests.
 
 No check for MD5 checksums. For completeness, there probably should be
@@ -635,7 +638,8 @@ Test::Builder is used for the testing framework.
 =head2 Optional
 
 Test::CGI::External uses the following modules to do optional tests
-(see L</TESTS APPLIED>).
+(see L</TESTS APPLIED>). It can be installed without these modules,
+since they are only used when they are required by specific tests.
 
 =over
 
