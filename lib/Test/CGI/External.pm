@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.10_02';
+our $VERSION = '0.10_03';
 
 sub new
 {
@@ -288,6 +288,8 @@ sub setenv_private
 
 sub encode_utf8_safe
 {
+    my ($self) = @_;
+    my $input = $self->{input};
     eval "use Unicode::UTF8;";
     if ($@) {
 	if (! $self->{no_warn} && ! $self->{_warned_unicode_utf8}) {
@@ -295,10 +297,9 @@ sub encode_utf8_safe
 	    $self->{_warned_unicode_utf8} = 1;
 	}
 	# Encode::encode_utf8 uses prototypes so we have to hassle this up.
-	my ($input) = @_;
 	return Encode::encode_utf8 ($input);
     }
-    return Unicode::UTF8::encode_utf8 (@_);
+    return Unicode::UTF8::encode_utf8 ($input);
 }
 
 # Internal routine to run a CGI program.
@@ -347,7 +348,7 @@ sub run_private
     if (defined $options->{input}) {
         $self->{input} = $options->{input};
 	if (utf8::is_utf8 ($self->{input})) {
-	    $self->{input} = encode_utf8_safe ($self->{input});
+	    $self->{input} = $self->encode_utf8_safe ();
 	}
         my $content_length = length ($self->{input});
         setenv_private ($self, 'CONTENT_LENGTH', $content_length);
