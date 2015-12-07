@@ -1,6 +1,11 @@
 Revision history for perl module Test::CGI::External
 
-0.10_03 2015-11-13
+0.12 2015-12-07
+
+- Closes a loophole where a test passed if a value (Status) was
+  undefined, where it should have failed.
+
+0.11 2015-11-14
 
 - Reduce dependencies, fall back to core modules when available
 - Optionally switch off warnings

@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.10_03';
+our $VERSION = '0.12';
 
 sub new
 {
@@ -168,10 +168,11 @@ sub test_if_modified_since
     run_private ($self);
     $self->check_headers_private ($self);
     my $headers = $run_options{headers};
+    $self->do_test ($headers->{status}, "Got a status header");
     $self->do_test ($headers->{status} =~ /304/, "Got 304 status response");
     my $body = $run_options{body};
-    $self->do_test (length ($body) == 0, "No body returned with 304 response");
-    # Restore this to whatever it was, probably "undef".
+    $self->do_test (! defined ($body) || length ($body) == 0, "No body returned with 304 response");
+    $self->note ("body has length ".length ($body));
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.
     $self->{run_options} = $saved_run_options;

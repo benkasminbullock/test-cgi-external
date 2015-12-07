@@ -559,7 +559,7 @@ headers, in this situation.
 
 This test is run by L</run>. It is an optional test switched on by the
 L</html> parameter. You also need to supply your own HTML validator
-using the C<set_html_validator> parameter. You should also set the
+using the L</set_html_validator> method. You should also set the
 expected mime type to C<text/html> with L</expect_mime_type> if you
 use this.
 
@@ -594,11 +594,11 @@ I wanted to include an example validator program in this distribution
 but I cannot find anything remotely useable on CPAN. For example
 L<HTML::Lint> seems to be very problematic, and the W3C validator
 seems intent on making huge amounts of fuss. The Go program I made,
-mentioned below, is barely useable to anyone except myself since it
+mentioned below, is barely useable to anyone except me, since it
 insists on a range of personal coding conventions and checks for
 mistakes which I commonly make but which are probably unlikely to be
-made by anyone else. Please get in touch if you have a good validation
-scheme.
+made by anyone else. Please get in touch if you have a good idea for
+HTML validation.
 
 The program doesn't sanitize %ENV, but it probably should do.
 
