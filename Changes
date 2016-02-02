@@ -1,5 +1,9 @@
 Revision history for perl module Test::CGI::External
 
+0.13 2016-02-02
+
+- Load JSON::Parse for JSON validation.
+
 0.12 2015-12-07
 
 - Closes a loophole where a test passed if a value (Status) was

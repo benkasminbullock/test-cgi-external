@@ -16,3 +16,5 @@ MYMETA..*
 ^USERS$
 # Time sheet
 ^timesheet\.txt$
+# Author tests
+^xt/.*$

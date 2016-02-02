@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 sub new
 {
@@ -172,7 +172,6 @@ sub test_if_modified_since
     $self->do_test ($headers->{status} =~ /304/, "Got 304 status response");
     my $body = $run_options{body};
     $self->do_test (! defined ($body) || length ($body) == 0, "No body returned with 304 response");
-    $self->note ("body has length ".length ($body));
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.
     $self->{run_options} = $saved_run_options;
@@ -837,6 +836,10 @@ sub validate_json
 {
     my ($self) = @_;
     my $json = $self->{run_options}->{body};
+    eval "use JSON::Parse 'valid_json';";
+    if ($@) {
+	croak "JSON::Parse is not installed, cannot validate JSON";
+    }
     my $valid = valid_json ($json);
     if ($valid) {
 	$self->pass_test ("Valid JSON");
