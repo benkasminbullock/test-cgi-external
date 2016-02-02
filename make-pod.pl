@@ -3,6 +3,7 @@ use warnings;
 use strict;
 use Template;
 use FindBin '$Bin';
+use Perl::Build qw/get_version get_commit/;
 use Perl::Build::Pod ':all';
 use Deploy qw/do_system older/;
 use Getopt::Long;
@@ -21,9 +22,15 @@ my $pod = 'External.pod';
 my $input = "$Bin/lib/Test/CGI/$pod.tmpl";
 my $output = "$Bin/lib/Test/CGI/$pod";
 
+my $version = get_version ();
+my $commit = get_commit ();
+
 # Template toolkit variable holder
 
 my %vars;
+
+$vars{version} = $version;
+$vars{commit} = $commit;
 
 my $tt = Template->new (
     ABSOLUTE => 1,
