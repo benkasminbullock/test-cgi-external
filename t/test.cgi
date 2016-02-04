@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/home/ben/software/install/bin/perl
 
 # This is a deliberately-misbehaving CGI script, the "bad boy" of CGI
 # scripting. The bad behaviour is controllable by command-line options.

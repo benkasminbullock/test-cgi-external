@@ -1,5 +1,9 @@
 Revision history for perl module Test::CGI::External
 
+0.14 2016-02-04
+
+- Changes to testing methodology only, no change in module functionality.
+
 0.13 2016-02-02
 
 - Load JSON::Parse for JSON validation.

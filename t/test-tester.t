@@ -5,6 +5,26 @@ use Test::More;
 use Test::CGI::External;
 use FindBin '$Bin';
 
+# Edit the test script to give it the right path.
+# http://stackoverflow.com/questions/10390173/getting-absolute-path-to-perl-executable-for-the-current-process#10393492
+
+use Config;
+my $perlpath = $Config{perlpath};
+my $cgi = "$Bin/test.cgi";
+open my $in, "<", $cgi or die "Cannot open $cgi: $!";
+my @lines;
+while (<$in>) {
+s/^#!.*perl.*$/#!$perlpath/;
+push @lines, $_;
+}
+close $in or die "Cannot close $cgi: $!";
+open my $out, ">", $cgi or die "Cannot open $cgi: $!";
+for (@lines) {
+print $out $_;
+}
+close $out or die "Cannot close $cgi: $!";
+
+# Now start the tests.
 if ($^O eq 'MSWin32') {
     plan skip_all => "These tests not adapted for Microsoft Windows";
 }
