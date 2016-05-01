@@ -329,7 +329,14 @@ sub run_private
     else {
 	$self->note ("There is no query string.");
     }
-    my $request_method = $self->check_request_method ($options->{REQUEST_METHOD});
+
+    my $request_method;
+    if ($options->{no_check_request_method}) {
+	$request_method = $options->{REQUEST_METHOD};
+    }
+    else {
+	$request_method = $self->check_request_method ($options->{REQUEST_METHOD});
+    }
     $self->note ("The request method is '$request_method'.");
     setenv_private ($self, 'REQUEST_METHOD', $request_method);
     my $content_type = $options->{CONTENT_TYPE};

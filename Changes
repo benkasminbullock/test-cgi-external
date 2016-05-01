@@ -1,5 +1,9 @@
 Revision history for perl module Test::CGI::External
 
+0.15 2016-05-01
+
+- Add no_check_request_method option
+
 0.14 2016-02-04
 
 - Changes to testing methodology only, no change in module functionality.

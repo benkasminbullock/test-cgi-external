@@ -333,6 +333,20 @@ If this is set to a true value, the program does not check for the
 case where the CGI produces, for example, a "Location: " response
 without a body. See also the L</set_no_check_content> method.
 
+=item no_check_request_method
+
+    $options{no_check_request_method} = 1;
+
+If you need to set L</REQUEST_METHOD> to a method other than
+POST, GET, or HEAD, set this to a true value to override the check of
+the request method. For example, if you need to check how your CGI
+program responds to PROPFIND requests, use
+
+    $options{no_check_request_method} = 1;
+    $options{REQUEST_METHOD} = 'PROPFIND';
+
+This option was added in version 0.15.
+
 =item QUERY_STRING
 
      $options{QUERY_STRING} = "word=babies";
@@ -359,9 +373,10 @@ test run.
 This option may be set to one of POST, GET and HEAD. The module then
 sets the environment variable REQUEST_METHOD to this value. If not set
 at all, the module sets it to a default and prints a warning
-message. You can also set this to any other value you want, like
-C<OPTIONS> or something, but the module prints a warning message. You
-can switch off the warning using L</set_no_warnings>.
+message.
+
+You can also set this to any other value you want, like C<OPTIONS> or
+something, using L</no_check_request_method>.
 
 =back
 
