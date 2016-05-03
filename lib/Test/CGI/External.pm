@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 sub new
 {
