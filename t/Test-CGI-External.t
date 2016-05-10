@@ -9,19 +9,21 @@ use Test::CGI::External;
 
 use Config;
 my $perlpath = $Config{perlpath};
-my $cgi = "$Bin/test.cgi";
-open my $in, "<", $cgi or die "Cannot open $cgi: $!";
-my @lines;
-while (<$in>) {
-s/^#!.*perl.*$/#!$perlpath/;
-push @lines, $_;
+for my $cgibase (qw/test unicode/) {
+    my $cgi = "$Bin/$cgibase.cgi";
+    open my $in, "<", $cgi or die "Cannot open $cgi: $!";
+    my @lines;
+    while (<$in>) {
+	s/^#!.*perl.*$/#!$perlpath/;
+	push @lines, $_;
+    }
+    close $in or die "Cannot close $cgi: $!";
+    open my $out, ">", $cgi or die "Cannot open $cgi: $!";
+    for (@lines) {
+	print $out $_;
+    }
+    close $out or die "Cannot close $cgi: $!";
 }
-close $in or die "Cannot close $cgi: $!";
-open my $out, ">", $cgi or die "Cannot open $cgi: $!";
-for (@lines) {
-print $out $_;
-}
-close $out or die "Cannot close $cgi: $!";
 
 # Now start the tests.
 
