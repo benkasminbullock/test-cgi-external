@@ -35,10 +35,11 @@ WriteMakefile1(
 	prereqs => {
 	    runtime => {
 		recommends => {
-		    'Gzip::Faster' => '0.08',
+		    'Gzip::Faster' => '0.14',
 		    'HTTP::Date' => '6.02',
-		    'JSON::Parse' => '0.38',
+		    'JSON::Parse' => '0.49',
 		    'Unicode::UTF8' => '0.60',
+		    'Image::PNG::Libpng' => '0.43', 
 		},
 	    },
 	},

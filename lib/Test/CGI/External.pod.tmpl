@@ -613,6 +613,12 @@ This test is run by L</run>. It is an optional test switched on by the
 L</json> parameter.  You should also set the expected mime type to
 C<application/json> with L</expect_mime_type> if you use this.
 
+=item The output is valid PNG. (Optional)
+
+This test is run by L</run>. It is an optional test switched on by the
+L</png> parameter.  You should also set the expected mime type to
+C<image/png> with L</expect_mime_type> if you use this.
+
 =back
 
 =head1 BUGS
@@ -649,8 +655,8 @@ The program doesn't sanitize %ENV, but it probably should do.
 The number of tests is not really fixed, so the older way of using
 Test::More with a plan won't work with this module.
 
-The HTML validator writes into C<$Bin> rather than using File::Temp or
-similar.
+The HTML validator writes into C<$Bin> rather than using L<File::Temp>
+or something similar.
 
 =head1 DEPENDENCIES
 
@@ -704,6 +710,11 @@ unless you choose L</do_compression_test>. This module is used as a
 fallback if you don't have Gzip::Faster. It is used because it's a
 core Perl module, so most people will have this installed.
 
+=item L<Image::PNG::Libpng>
+
+Optionally, Image::PNG::Libpng is used if you select the L</png>
+option to test the output is valid PNG data.
+
 =item L<JSON::Parse>
 
 JSON::Parse is used to test JSON for validity, if you choose to check
@@ -714,11 +725,6 @@ JSON with L</json>.
 Optionally, Unicode::UTF8 is used for converting UTF-8 encodings into
 Perl's internal Unicode, if you set the charset to UTF-8 with
 L</expect_charset>. If you don't have this, it falls back to Encode.
-
-=item L<Image::PNG::Libpng>
-
-Optionally, Image::PNG::Libpng is used if you select the L</png>
-option to test the output is valid PNG data.
 
 =back
 
@@ -820,4 +826,3 @@ most of which were only needed for optional tests.
 
 [% start_year='2011' %]
 [% INCLUDE "author" %]
-[% INCLUDE "terminology" %]
