@@ -1,5 +1,9 @@
 Revision history for perl module Test::CGI::External
 
+0.17 2016-12-06
+
+- Test option "png" tests for PNG output
+
 0.16 2016-05-10
 
 - Test fixes for a limited number of systems

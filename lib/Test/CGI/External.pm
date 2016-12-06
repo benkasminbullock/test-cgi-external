@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 sub new
 {
@@ -675,6 +675,17 @@ sub run
 	    carp "There is no expected mime type, I suggest text/plain or application/json for JSON output";
 	}
     }
+    elsif ($options->{png} && ! $self->{no_warn}) {
+	my $mime_type = $self->{mime_type};
+	if ($mime_type) {
+	    if ($mime_type ne 'image/png') {
+		carp "Your expected mime type of $mime_type is not valid for PNG";
+	    }
+	}
+	else {
+	    carp "There is no expected mime type, use image/png for PNG output";
+	}
+    }
 
 #    eval {
     run_private ($self);
@@ -721,6 +732,9 @@ sub run
     }
     if ($options->{json}) {
 	validate_json ($self);
+    }
+    if ($options->{png}) {
+	validate_png ($self);
     }
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";
@@ -854,6 +868,23 @@ sub validate_json
     else {
 	$self->fail_test ("Valid JSON");
     }
+}
+
+sub validate_png
+{
+    my ($self) = @_;
+    eval "use Image::PNG::Libpng 'read_from_scalar';";
+    if ($@) {
+	croak "Image::PNG::Libpng is not installed, cannot validate PNG";
+    }
+    my $body = $self->{run_options}->{body};
+    my $png;
+    eval {
+	$png = read_from_scalar ($body);
+    };
+    $self->{tb}->ok (!$@, "Could read PNG from body");
+    $self->{tb}->ok ($png, "Got a valid value for PNG");
+    $self->{run_options}{pngdata} = $png;
 }
 
 1;
