@@ -551,6 +551,22 @@ L</expect_mime_type> method.
 This test is run by L</run>. It is an optional test switched on by the
 L</expect_charset> method.
 
+=item There is a blank line after the headers (Must-pass)
+
+A blank line is compulsory after the headers, even if there is no
+response body. From L<RFC 3875|/Specification of the Common Gateway
+Interface>, section 6.2:
+
+=over
+
+The response comprises a message-header and a message-body, separated
+by a blank line.  The message-header contains one or more header
+fields.  The body may be NULL.
+
+    generic-response = 1*header-field NL [ response-body ]
+
+=back
+
 =item The body of the output is compressed (Optional)
 
 This test is run by L</run>. It is an optional test switched on by the
@@ -639,7 +655,8 @@ JSON or PNG parts of the module.
 There is no check for MD5 checksums. For completeness, there probably
 should be a check for this.
 
-The module is not adapted for Microsoft Windows.
+The module is not adapted for Microsoft Windows. See also
+L<https://github.com/benkasminbullock/test-cgi-external/issues/1>.
 
 I wanted to include an example validator program in this distribution
 but I cannot find anything useable on CPAN. For example L<HTML::Lint>
@@ -655,8 +672,9 @@ The program doesn't sanitize %ENV, but it probably should do.
 The number of tests is not really fixed, so the older way of using
 Test::More with a plan won't work with this module.
 
-The HTML validator writes into C<$Bin> rather than using L<File::Temp>
-or something similar.
+The HTML validator writes into the directory of the executable file,
+found using L<FindBin/$Bin>, rather than using L<File::Temp> or
+something similar.
 
 =head1 DEPENDENCIES
 
@@ -821,18 +839,7 @@ L</expect_mime_type> and offered a way to sidestep the nag messages
 with L</set_no_warnings>. It also reduced the number of dependencies,
 most of which were only needed for optional tests.
 
-Version 0.18 added a new test that the header contains a blank line
-even when the body is empty. This blank line is compulsory. From RFC
-3875, section 6.2:
-
-=over
-
-The response comprises a message-header and a message-body, separated
-by a blank line.  The message-header contains one or more header
-fields.  The body may be NULL.
-
-    generic-response = 1*header-field NL [ response-body ]
-
-=back
+Version 0.18 added the new test that the header contains a blank line
+even when the body is empty. 
 
 [% INCLUDE "author" %]
