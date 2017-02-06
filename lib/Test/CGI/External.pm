@@ -13,7 +13,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.18';
+our $VERSION = '0.19';
 
 sub new
 {
@@ -534,6 +534,15 @@ sub check_http_header_syntax_private
     $self->{run_options}{headers} = \%headers;
 }
 
+# The output is required to have a blank line even if it has no body.
+
+sub check_blank_line
+{
+    my ($self, $output) = @_;
+    my $blank = ($output =~ /\r?\n\r?\n/);
+    $self->{tb}->ok ($blank, "Output contains a blank line");
+}
+
 # Check whether the headers of the CGI output are well-formed.
 
 sub check_headers_private
@@ -548,6 +557,7 @@ sub check_headers_private
 	$self->note ("No output, skipping header tests");
         return;
     }
+    check_blank_line ($self, $output);
     my ($header, $body) = split /\r?\n\r?\n/, $output, 2;
     check_http_header_syntax_private ($self, $header, $verbose);
     if (! $self->{no_check_content}) {

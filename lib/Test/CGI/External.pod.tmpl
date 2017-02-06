@@ -1,3 +1,22 @@
+[% start_year='2011' %]
+[%- MACRO example(file) BLOCK %]
+[%- pl = file _ ".pl" -%]
+[%- out = file _ "-out.txt" -%]
+[%- INCLUDE $pl | xtidy %]
+
+produces output
+
+[% INCLUDE $out | xtidy %]
+
+(This example is included as L<F<[% pl %]>|https://api.metacpan.org/source/BKB/[% info.name %]-[% info.version %]/examples/[% pl %]> in the distribution.)
+[% END -%]
+[%- MACRO since(version) BLOCK -%]
+This method was added in version [% version %].
+[%- END %]
+[%- MACRO osince(version) BLOCK -%]
+This option was added in version [% version %].
+[%- END %]
+
 =encoding UTF-8
 
 =head1 NAME
@@ -6,19 +25,16 @@ Test::CGI::External - run tests on an external CGI program
 
 =head1 SYNOPSIS
 
-[% INCLUDE "examples/synopsis.pl" | xtidy %]
-
-produces output like this:
-
-[% INCLUDE "examples/synopsis-out.txt" | xtidy %]
+[% example("synopsis") %]
 
 After the test has run, the uncompressed output is in
 C<$options{body}>.
 
 =head1 VERSION
 
-This document describes Test::CGI::External version [% version %]
-corresponding to git commit [% commit.commit %] on [% commit.date %].
+This documents [% info.colon %] version [% info.version %]
+corresponding to git commit L<[% commit.commit %]|[% info.repo
+%]/commit/[% commit.commit %]> released on [% commit.date %].
 
 =head1 DESCRIPTION
 
@@ -59,27 +75,30 @@ debugging messages on standard output);
 
 =back
 
-In other words, Test::CGI::External tests for extremely simple
-"slip-up" mistakes, such as forgetting to install the program,
-forgetting to make it executable, leaving print statements before the
-headers are printed, exiting without printing output, or printing
-useless error messages during running.
+Test::CGI::External tests for mistakes such as forgetting to install
+the program, forgetting to make it executable, leaving print
+statements before the headers are printed, exiting without printing
+output, or printing useless error messages during running.
 
 Test::CGI::External runs CGI programs as stand-alone programs, under a
 faked CGI-like environment created by manipulating environment
 variables. Thus it does not require a web server.  The tested CGI
-program can be in any language, not just Perl; Test::CGI::External is
-meant to test external programs which are completely independent of
-itself. Test::CGI::External was originally created to check the
-operation of CGI programs written in C.
+program can be in any language, not just Perl; the "external" in
+Test::CGI::External means it is meant to test external programs which
+are completely independent of itself. Test::CGI::External was
+originally created to check the operation of CGI programs written in
+C.
 
 Test::CGI::External is meant for the testing stage before the program
 is put onto a web server. For example, if a program with stray printf
 statements is uploaded to the web server and run as a CGI program, the
-browser will show only a 500 Server Error message. Another typical
-mistake is forgetting to make the CGI program executable; again, this
-results in a difficult-to-understand server error, so this module nips
-the problem in the bud by checking before the uploading.
+browser will show only a 500 Server Error message. If the program is
+tested with this module before being uploaded, it will be much easier
+to find the error. Another typical mistake is forgetting to make the
+CGI program executable; again, this results in a
+difficult-to-understand server error. This module nips these sorts of
+problem in the bud by checking for careless mistakes before the
+uploading.
 
 Test::CGI::External is TAP (Test Anything Protocol)-compliant and
 should work with Perl testing modules like L<Test::More>.
@@ -97,9 +116,9 @@ Create a new testing object.
 =head2 plan
 
 Print the TAP (Test Anything Protocol) plan. This has to be done at
-the end of the execution. As shown in the L</SYNOPSIS>, you usually
-don't have to print this but can use "done_testing" from L<Test::More>
-since this module uses L<Test::Builder> internally.
+the end of the execution. As shown in L</SYNOPSIS>, you usually don't
+have to print this but can use "done_testing" from L<Test::More>,
+since this module uses the L<Test::Builder> singleton internally.
 
 =head2 run
 
@@ -110,11 +129,7 @@ inputs specified in C<%options>. The argument must be a hash
 reference. See L</Possible options> for possible options. See
 L</Outputs> for outputs. Here is an example:
 
-[% INCLUDE "rupert.pl" | xtidy %]
-
-produces
-
-[% INCLUDE "rupert-out.txt" | xtidy %]
+[% example("rupert") %]
 
 You can also use run without an argument to do basic tests,
 but it will print warnings. Use L</set_no_warnings> to stop it
@@ -127,7 +142,7 @@ printing these.
 Set the CGI program to be tested to F<my.cgi>. This checks whether the
 file exists and is executable, and prints a warning if either of these
 checks fails. It's also possible to send command-line options to the
-program. Things after the name of the executable are sent as
+program. Arguments after the name of the executable are sent as
 command-line options to the CGI program:
 
     $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
@@ -140,9 +155,9 @@ These methods control test options.
 
     $tester->do_caching_test (1);
 
-Turn on or off testing of caching. If this test is "on", the CGI
-executable will be tested for producing a "Last-Modified: " header
-with a correctly-formatted date, and to be able to respond with a 304
+Turn on or off testing of caching. If this test is "on", it will be
+tested whether the CGI executable produces a "Last-Modified: " header
+with a correctly-formatted date, and is able to respond with a 304
 "Not modified" response when sent an identical query and a date later
 than its "Last-Modified" date. This requires L<HTTP::Date> to be
 installed.
@@ -156,13 +171,9 @@ during the "If Modified Since" part of the testing.
 Here is an example, using a CGI program which always claims not to be
 modified when asked:
 
-[% INCLUDE "never-modified.pl" | xtidy %]
+[% example("never-modified") %]
 
-outputs
-
-[% INCLUDE "never-modified-out.txt" | xtidy %]
-
-This method was added in version 0.10 of this module.
+[% since('0.10') %]
 
 =head2 do_compression_test
 
@@ -173,9 +184,6 @@ which is being tested. Give any true value as the first argument to
 turn on compression testing. Give any false value to turn off
 compression testing. This requires either L<Gzip::Faster> or
 L<IO::Uncompress::Gunzip> to be installed.
-
-Prior to version 0.07 of this module, these tests were done by
-L<IO::Uncompress::Gunzip>.
 
 =head2 expect_charset
 
@@ -206,7 +214,7 @@ do not set any expected character set, no upgrading is done.
 Tell C<$tester> what mime type to expect on the C<Content-Type> line
 of the header. A test is run that the mime type is what you said.
 
-This method is new in version 0.11 of this module.
+[% since('0.11') %]
 
 =head2 set_html_validator
 
@@ -220,7 +228,7 @@ validator program is regarded as successful completion. The error
 output of the HTML validator is discarded. See also L</HISTORY> and
 L</BUGS> for why this is done this way.
 
-This interface was added in version 0.10 of this module.
+[% since('0.10') %]
 
 =head2 set_no_check_content
 
@@ -239,7 +247,7 @@ Setting this to any true value turns off all the warnings. Setting
 this to a false value restores the warnings. Although the warnings are
 annoying, I suggest being cautious about turning these off.
 
-This interface was added in version 0.11 of this module.
+[% since('0.12') %]
 
 =head2 set_verbosity
 
@@ -345,7 +353,7 @@ program responds to PROPFIND requests, use
     $options{no_check_request_method} = 1;
     $options{REQUEST_METHOD} = 'PROPFIND';
 
-This option was added in version 0.15.
+[% osince('0.15') %]
 
 =item png
 
@@ -359,11 +367,7 @@ apply any further tests to it if you wish. The following example
 demonstrates how this test could be applied to a CGI binary which
 produces a PNG output.
 
-[% INCLUDE "examples/png-test.pl" | xtidy %]
-
-produces output like this:
-
-[% INCLUDE "examples/png-test-out.txt" | xtidy %]
+[% example("png-test") %]
 
 =item QUERY_STRING
 
@@ -428,11 +432,7 @@ the return value of Perl's length function.
 
 For example,
 
-[% INCLUDE "length.pl" | xtidy %]
-
-outputs
-
-[% INCLUDE "length-out.txt" | xtidy %]
+[% example("length") %]
 
 =item error_output
 
@@ -754,9 +754,7 @@ dated June 1999. See L<http://www.ietf.org/rfc/rfc2616.txt>.
 
 =item L<The Common Gateway Interface|http://www.lemoda.net/cgi/simple-guide/index.html>
 
-This is my own web page which explains some things about CGI. (The
-strange design is because I used this as a test page for responsive
-web design class.)
+This is my own web page which explains some things about CGI.
 
 =back
 
@@ -788,8 +786,8 @@ files, stray printf statements, etc.) that Test::CGI::External does,
 and if it detects problems like these, it dies (throws exceptions),
 rather than making them into pass and fail tests.
 
-Compared to this, Test::CGI::External's philosophy might be described
-as "anything which can go wrong, will go wrong" and it uses the "test"
+In contrast, Test::CGI::External's philosophy is Murphy's law,
+"anything which can go wrong, will go wrong", and it uses the "test"
 channel to check that the most basic kinds of problems are not
 occurring, rather than throwing exceptions. CGI::Test just runs the
 CGI program for you and returns its output for you to test yourself.
@@ -815,14 +813,26 @@ Version 0.07 marked the module's return to CPAN by popular demand.
 
 Version 0.09 added Unicode upgrading of L</body>.
 
-Version 0.10 marked the addition of do_caching_test and the removal of
-C<die_on_failure>, which had already been made invalid by the move to
-Test::Builder.
+Version 0.10 added C<do_caching_test> and removed C<die_on_failure>,
+which was made invalid by the move to L<Test::Builder>.
 
 Version 0.11 added support for testing mime types with
 L</expect_mime_type> and offered a way to sidestep the nag messages
 with L</set_no_warnings>. It also reduced the number of dependencies,
 most of which were only needed for optional tests.
 
-[% start_year='2011' %]
+Version 0.18 added a new test that the header contains a blank line
+even when the body is empty. This blank line is compulsory. From RFC
+3875, section 6.2:
+
+=over
+
+The response comprises a message-header and a message-body, separated
+by a blank line.  The message-header contains one or more header
+fields.  The body may be NULL.
+
+    generic-response = 1*header-field NL [ response-body ]
+
+=back
+
 [% INCLUDE "author" %]
