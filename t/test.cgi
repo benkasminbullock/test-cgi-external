@@ -5,7 +5,7 @@
 
 use warnings;
 use strict;
-use FindBin;
+use FindBin '$Bin';
 use Getopt::Long;
 
 # Get what kind of bad behaviour to exhibit
@@ -68,7 +68,7 @@ else {
 	print "Welcome to your web page\n";
     }
     else {
-	open my $in, "<:raw", "$FindBin::Bin/test.gz" or die $!;
+	open my $in, "<:raw", "$Bin/test.gz" or die $!;
 	while (<$in>) {
 	    print;
 	}

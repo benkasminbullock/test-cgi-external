@@ -195,17 +195,16 @@ character set correctly.
 If you set an expected character set with C<expect_charset>, then the
 body of the output is upgraded from that encoding into Perl's Unicode
 encoding, C<utf8>. Unless the encoding is UTF-8, that upgrading is
-also added as a pass or fail test:
+also added as a pass or fail test. For example,
 
     $tester->expect_charset ('EUC-JP');
 
 adds a test for decoding from the EUC-JP encoding.  
 
-This requires either L<Unicode::UTF8> or L<Encode> to be installed.
-
-This behaviour is new in version 0.08 of this module. Prior to version
-0.08, C<$output{body}> was not upgraded to C<utf8>. Note that if you
-do not set any expected character set, no upgrading is done.
+The behaviour of the module was changed in version 0.08 of this
+module. Prior to version 0.08, C<$output{body}> was not upgraded to
+C<utf8>. If you do not set an expected character set, no upgrading is
+done.
 
 =head2 expect_mime_type
 

@@ -1,8 +1,5 @@
 package Test::CGI::External;
 use 5.006;
-require Exporter;
-@ISA = qw(Exporter);
-@EXPORT_OK = qw//;
 use warnings;
 use strict;
 use utf8;
@@ -21,7 +18,7 @@ sub new
 
     my $tb = Test::Builder->new ();
     $tester{tb} = $tb;
-    $tester{html_validator} = '/home/ben/bin/validate';
+#    $tester{html_validator} = '/home/ben/bin/validate';
 
     return bless \%tester;
 }
@@ -647,6 +644,10 @@ sub set_no_check_content
 sub run
 {
     my ($self, $options) = @_;
+    if (ref $options ne 'HASH') {
+	carp "Use a hash reference as argument, \$tester->run (\\\%options);";
+	return;
+    }
     my $verbose = $self->{verbose};
     local $Test::Builder::Level = $Test::Builder::Level + 1;
     if (! $self->{cgi_executable}) {
