@@ -698,6 +698,17 @@ sub run
 	}
     }
 
+    if ($options->{png}) {
+	if ($options->{html} || $options->{json}) {
+	    carp "Contradictory options png and json/html";
+	}
+    }
+    elsif ($options->{html}) {
+	if ($options->{json}) {
+	    carp "Contradictory options json and html";
+	}
+    }
+
 #    eval {
     run_private ($self);
     my $output = $self->{run_options}->{output};
