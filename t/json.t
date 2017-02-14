@@ -32,10 +32,7 @@ for (@results) {
 }
 $tester->set_cgi_executable ("$Bin/not-json.cgi");
 $tester->expect_mime_type ('application/json');
-my %options;
-$options{REQUEST_METHOD} = 'GET';
-$options{json} = 1;
-my ($premature, @results) = run_tests (
+($premature, @results) = run_tests (
     sub {
 	$tester->run (\%options);
     }
