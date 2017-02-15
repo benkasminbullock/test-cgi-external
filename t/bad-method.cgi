@@ -2,8 +2,8 @@
 use warnings;
 use strict;
 print <<EOF;
-Content-Type: application/monkey
+Status: 405
+Allow: HEAD
 
-This is not JSON
 EOF
-exit;
+

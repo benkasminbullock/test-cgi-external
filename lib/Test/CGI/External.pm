@@ -641,6 +641,26 @@ sub set_no_check_content
     $self->{no_check_content} = $value;
 }
 
+sub bad_request_method
+{
+    my ($self) = @_;
+    my %options;
+    $options{REQUEST_METHOD} = 'GOBBLEDIGOOK';
+    $options{no_check_request_method} = 1;
+    my $saved_no_check_content = $self->{no_check_content};
+    $self->{no_check_content} = 1;
+    $self->{run_options} = \%options;
+    run_private ($self);
+    #print $options{output}, "\n";
+    $self->check_headers_private ();
+    my $headers = $options{headers};
+    #    print "$headers\n";
+    $self->{tb}->ok ($headers->{allow}, "Got Allow header");
+    $self->{tb}->ok ($headers->{status}, "Got status header");
+    $self->{tb}->like ($headers->{status}, qr/405/, "Got method not allowed status");
+    $self->{no_check_content} = $saved_no_check_content;
+}
+
 sub run
 {
     my ($self, $options) = @_;
