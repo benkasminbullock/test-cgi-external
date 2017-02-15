@@ -1,4 +1,4 @@
-build\.pl
+^(build|clean|deploy|make-pod)\.pl$
 blib/.*
 .gitignore
 .git/.*
@@ -10,11 +10,10 @@ MYMETA..*
 ^Test-CGI-External-[0-9\.]+\.tar\.gz$
 # Output of the example programs
 ^examples/.*\-out\.txt$
-^make-pod\.pl$
 ^lib/Test/CGI/External\.pod\.tmpl$
 # Internal file.
 ^USERS$
 # Time sheet
 ^timesheet\.txt$
 # Author tests
-^xt/.*$
+^xt/.*\.t$
