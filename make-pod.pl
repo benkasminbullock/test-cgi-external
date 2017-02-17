@@ -7,6 +7,7 @@ use Perl::Build qw/get_commit get_info/;
 use Perl::Build::Pod ':all';
 use Deploy qw/do_system older/;
 use Getopt::Long;
+use File::Copy;
 my $ok = GetOptions (
     'force' => \my $force,
     'verbose' => \my $verbose,
@@ -50,6 +51,8 @@ my $tt = Template->new (
     },
     STRICT => 1,
 );
+
+copy "$Bin/t/bad-request.t", "$Bin/examples/bad-request.pl";
 
 my @examples = <$Bin/examples/*.pl>;
 for my $example (@examples) {

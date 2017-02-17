@@ -641,11 +641,16 @@ sub set_no_check_content
     $self->{no_check_content} = $value;
 }
 
-sub bad_request_method
+sub test_not_implemented
 {
-    my ($self) = @_;
+    my ($self, $method) = @_;
     my %options;
-    $options{REQUEST_METHOD} = 'GOBBLEDIGOOK';
+    if ($method) {
+	$options{REQUEST_METHOD} = $method;
+    }
+    else {
+	$options{REQUEST_METHOD} = 'GOBBLEDIGOOK';
+    }
     $options{no_check_request_method} = 1;
     my $saved_no_check_content = $self->{no_check_content};
     $self->{no_check_content} = 1;
@@ -654,11 +659,57 @@ sub bad_request_method
     #print $options{output}, "\n";
     $self->check_headers_private ();
     my $headers = $options{headers};
-    #    print "$headers\n";
-    $self->{tb}->ok ($headers->{allow}, "Got Allow header");
     $self->{tb}->ok ($headers->{status}, "Got status header");
-    $self->{tb}->like ($headers->{status}, qr/405/, "Got method not allowed status");
+    $self->{tb}->like ($headers->{status}, qr/501/, "Got not implemented status");
     $self->{no_check_content} = $saved_no_check_content;
+    $self->clear_env ();
+}
+
+sub test_method_not_allowed
+{
+    my ($self, $bad_method) = @_;
+    my $tb = $self->{tb};
+    my %options;
+    $options{REQUEST_METHOD} = $bad_method;
+    $options{no_check_request_method} = 1;
+    my $saved_no_check_content = $self->{no_check_content};
+    $self->{no_check_content} = 1;
+    $self->{run_options} = \%options;
+    run_private ($self);
+    $self->check_headers_private ();
+    my $headers = $options{headers};
+    $tb->ok ($headers->{allow}, "Got Allow header");
+    $tb->like ($headers->{status}, qr/405/, "Got method not allowed status");
+    $self->clear_env ();
+    my @allow = split /,\s*/, $headers->{allow};
+    for my $ok_method (@allow) {
+	# Run the program with each of the headers we were told were
+	# allowed, and see whether the program executes correctly.
+	my %op2;
+	$op2{REQUEST_METHOD} = $ok_method;
+	$self->{run_options} = \%op2;
+	run_private ($self);
+	$self->check_headers_private ();
+	my $headers2 = $op2{headers};
+	# Check that either there is no status line (defaults to 200),
+	# or that there is a status line, and it has status 200.
+	$tb->ok (! $headers2->{status} || $headers2->{status} =~ /200/,
+		 "Method $ok_method specified by Allow: header was allowed");
+	$self->clear_env ();
+    }
+    $self->{no_check_content} = $saved_no_check_content;
+}
+
+# Clear all the environment variables we have set ourselves.
+
+sub clear_env
+{
+my ($self) = @_;
+    for my $e (@{$self->{set_env}}) {
+#        print "Deleting environment variable $e\n";
+        $ENV{$e} = undef;
+    }
+    $self->{set_env} = undef;
 }
 
 sub run
@@ -778,11 +829,7 @@ sub run
     if ($options->{png}) {
 	validate_png ($self);
     }
-    for my $e (@{$self->{set_env}}) {
-#        print "Deleting environment variable $e\n";
-        $ENV{$e} = undef;
-    }
-    $self->{set_env} = undef;
+    $self->clear_env ();
 }
 
 sub tidy_files

@@ -1,5 +1,9 @@
 Revision history for perl module Test::CGI::External
 
+0.19 2017-02-17
+- Additional tests related to REQUEST_METHOD handling,
+  "test_method_not_allowed" and "test_not_implemented"
+
 0.18 2017-02-06
 
 - Insist on blank line even if there is no response body, just headers

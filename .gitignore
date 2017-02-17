@@ -4,3 +4,6 @@ Makefile
 MANIFEST
 README
 Test-CGI-External-[0-9]*
+examples/*-out.txt
+# Copy of t/bad-request.t
+examples/bad-request.pl

@@ -147,6 +147,91 @@ command-line options to the CGI program:
 
     $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
 
+=head2 test_not_implemented
+
+    $tester->test_not_implemented ();
+
+Test how your CGI program responds to an unknown request method. This
+sends a request with a method consisting of gibberish to the CGI and
+checks that the response contains the HTTP status C<501 Not
+Implemented>. 
+
+This tests compliance with B<6.3.3. Status> of L<RFC
+3875|/Specification of the Common Gateway Interface>:
+
+=over
+
+Status code 501 'Not Implemented' may be returned by a script if it
+receives an unsupported REQUEST_METHOD.
+
+=back
+
+If you need to, you can supply your own request method as the first
+argument to the script:
+
+    $tester->test_not_implemented ('SUFFER');
+
+The request method probably should not be something like C<POST> or
+C<HEAD>. If you need to test how your script handles a known but not
+supported request method, for example if you want to reject POST
+requests, use L</test_method_not_allowed>.
+
+All the script outputs and headers are discarded after this method has
+completed.
+
+[% since('0.19') %] 
+
+=head2 test_method_not_allowed
+
+    $tester->test_method_not_allowed ('POST');
+
+Test how your CGI program responds to a known but unsupported request
+method, such as POST, HEAD, or OPTIONS. This sends a request with the
+tested method to your CGI program and captures the response. It then
+checks that the captured response contains the HTTP status C<405
+Method Not Allowed>, and an C<Allow:> header. This tests compliance
+with B<6.3.3. Status> of L<RFC 3875|/Specification of the Common
+Gateway Interface>:
+
+=over
+
+The script MAY reject with error 405 'Method Not Allowed' HTTP/1.1
+requests made using a method it does not support.
+
+=back
+
+and B<10.4.6 405 Method Not Allowed> of L<RFC 2616|/Specification for
+HTTP headers>:
+
+=over
+
+The response MUST include an Allow header containing a list of valid
+methods for the requested resource.
+
+=back
+
+This test further checks the validity of the allow header by making
+requests for each of the request methods it defines. For example, if
+your allow header contains C<GET> and C<POST>, this makes empty GET
+and POST requests to your script to see whether it handles them or
+not.
+
+If you need to check how your script responds to completely unexpected
+request methods, use L</test_not_implemented> rather than this method.
+
+All the script outputs and headers are discarded after this method has
+completed.
+
+For example, given this script:
+
+[% INCLUDE "bad-method.cgi" | xtidy %]
+
+this test:
+
+[% example("bad-request") %]
+
+[% since(0.19) %]
+
 =head1 TEST OPTION METHODS
 
 These methods control test options.
@@ -648,9 +733,6 @@ disorganized (see also L</HISTORY>).
 The mixture of methods (see L</METHODS>) and options (see L</Possible
 options>) to control the tests is messy.
 
-The module has very few tests, for example there are no tests for the
-JSON or PNG parts of the module.
-
 There is no check for MD5 checksums. For completeness, there probably
 should be a check for this.
 
@@ -660,8 +742,9 @@ L<https://github.com/benkasminbullock/test-cgi-external/issues/1>.
 I wanted to include an example validator program in this distribution
 but I cannot find anything useable on CPAN. For example L<HTML::Lint>
 seems to be very problematic, and the W3C validator seems intent on
-making huge amounts of fuss. The Go program I made, mentioned below,
-is barely useable to anyone except me, since it insists on a range of
+making huge amounts of fuss about things which are almost irrelevant
+for practical purposes. The Go program I made, mentioned below, is
+barely useable to anyone except me, since it insists on a range of
 personal coding conventions and checks for mistakes which I commonly
 make but which are probably unlikely to be made by anyone else. Please
 get in touch if you have a good idea for HTML validation.
@@ -840,5 +923,8 @@ most of which were only needed for optional tests.
 
 Version 0.18 added the new test that the header contains a blank line
 even when the body is empty. 
+
+Version 0.19 added L</test_not_implemented> and
+L</test_method_not_allowed>.
 
 [% INCLUDE "author" %]
