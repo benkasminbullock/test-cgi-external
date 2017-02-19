@@ -1,5 +1,10 @@
 Revision history for perl module Test::CGI::External
 
+0.19_01 2017-02-19
+
+- Fix up the tests with the system Perl path in "Makefile.PL"
+  (experimental fix for tests)
+
 0.19 2017-02-17
 
 - Test REQUEST_METHOD handling,

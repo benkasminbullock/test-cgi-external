@@ -11,6 +11,30 @@ my $pm = 'lib/Test/CGI/External.pm';
 my $pod = 'lib/Test/CGI/External.pod';
 my $github = 'github.com/benkasminbullock/test-cgi-external';
 my $repo = "https://$github";
+use FindBin '$Bin';
+
+# Edit the test scripts to give them the right path.
+
+# http://stackoverflow.com/questions/10390173/getting-absolute-path-to-perl-executable-for-the-current-process#10393492
+
+use Config;
+my $perlpath = $Config{perlpath};
+my @cgis = map {"$Bin/t/$_.cgi"} qw/test unicode json not-json/;
+push @cgis, map {"$Bin/examples/$_.cgi"} qw/bad-method rupert x/;
+for my $cgi (@cgis) {
+    open my $in, "<", $cgi or die "Cannot open $cgi: $!";
+    my @lines;
+    while (<$in>) {
+	s/^#!.*perl.*$/#!$perlpath/;
+	push @lines, $_;
+    }
+    close $in or die "Cannot close $cgi: $!";
+    open my $out, ">", $cgi or die "Cannot open $cgi: $!";
+    for (@lines) {
+	print $out $_;
+    }
+    close $out or die "Cannot close $cgi: $!";
+}
 
 WriteMakefile1(
     AUTHOR => 'Ben Bullock <bkb@cpan.org>',
