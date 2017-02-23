@@ -28,4 +28,17 @@ $tester->run (\%options);
 $options{mime_type} = 'text/html';
 $tester->run (\%options);
 
+{
+    # Check the warnings from the test_status method.
+    my $warning;
+    local $SIG{__WARN__} = sub { 
+	($warning) = @_;
+    };
+    my $t2 = Test::CGI::External->new ();
+    $t2->test_status (101);
+    like ($warning, qr/no headers in this object/);
+    $t2->test_status ("300 Funny Business");
+    like ($warning, qr/not a valid HTTP status/);
+}
+
 done_testing ();

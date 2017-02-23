@@ -232,6 +232,38 @@ this test:
 
 [% since(0.19) %]
 
+=head2 test_status
+
+    $tester->run (\%options);
+    $tester->test_status (501);
+
+Call this method with a numerical HTTP status. It provides a
+convenient way to test whether you got an expected C<Status:> header
+in the output after using L</run>. It runs two tests. First it runs a
+test that there is a status header in the output, and second it runs a
+test that the output status header matches your required status. If
+there is no output available for C<$tester> to look at, a warning is
+printed and no tests are run. The argument must be a three-digit
+integer number. If not, a warning is printed and no tests are run.
+
+Note that you do not need to produce a 200 status header from a CGI
+script. From L<RFC 3875|/Specification of the Common Gateway
+Interface>
+
+=over
+
+Status code 200 'OK' indicates success, and is the default value
+assumed for a document response.
+
+=back
+
+Thus this test is not part of the tests done by L</run>. It is only
+necessary for the case when your status is not 200. See the
+L</Specification for HTTP headers> and related documents for a list of
+valid HTTP statuses.
+
+[% since(0.21) %]
+
 =head1 TEST OPTION METHODS
 
 These methods control test options.

@@ -10,7 +10,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 sub new
 {
@@ -164,11 +164,10 @@ sub test_if_modified_since
     $self->{no_warn} = 1;
     run_private ($self);
     $self->check_headers_private ($self);
-    my $headers = $run_options{headers};
-    $self->do_test ($headers->{status}, "Got a status header");
-    $self->do_test ($headers->{status} =~ /304/, "Got 304 status response");
+    $self->test_status (304);
     my $body = $run_options{body};
-    $self->do_test (! defined ($body) || length ($body) == 0, "No body returned with 304 response");
+    $self->do_test (! defined ($body) || length ($body) == 0,
+		    "No body returned with 304 response");
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.
     $self->{run_options} = $saved_run_options;
@@ -658,12 +657,27 @@ sub test_not_implemented
     run_private ($self);
     #print $options{output}, "\n";
     $self->check_headers_private ();
-    my $headers = $options{headers};
-    $self->{tb}->ok ($headers->{status}, "Got status header");
-    $self->{tb}->like ($headers->{status}, qr/501/, "Got not implemented status");
+    $self->test_status (501);
     $self->{no_check_content} = $saved_no_check_content;
     $self->clear_env ();
 }
+
+sub test_status
+{
+    my ($self, $status) = @_;
+    if ($status !~ /^[0-9]{3}$/) {
+	carp "$status is not a valid HTTP status, use a number like 301 or 503";
+	return;
+    }
+    my $headers = $self->{run_options}{headers};
+    if (! $headers) {
+	carp "no headers in this object; have you run a test yet?";
+	return;
+    }
+    $self->{tb}->ok ($headers->{status}, "Got status header");
+    $self->{tb}->like ($headers->{status}, qr/$status/, "Got $status status");
+} 
+
 
 sub test_method_not_allowed
 {
@@ -700,11 +714,24 @@ sub test_method_not_allowed
     $self->{no_check_content} = $saved_no_check_content;
 }
 
+# Send bullshit queries expecting a 400 response.
+
+sub test_broken_queries
+{
+    my ($tester, $options, $queries) = @_;
+    for my $query (@$queries) {
+	$ENV{QUERY_STRING} = $query;
+	$tester->run ($options);
+	# test for 400 header
+	$tester->test_status (400);
+    }
+}
+
 # Clear all the environment variables we have set ourselves.
 
 sub clear_env
 {
-my ($self) = @_;
+    my ($self) = @_;
     for my $e (@{$self->{set_env}}) {
 #        print "Deleting environment variable $e\n";
         $ENV{$e} = undef;
