@@ -1,8 +1,11 @@
 Revision history for perl module Test::CGI::External
 
-0.21 2017-02-23
+0.21 2017-02-26
 
 - Add test_status method
+- README improved
+- In test_method_not_allowed, make more effort to create a genuine
+  POST request if the Allow: header specifies POST.
 
 0.20 2017-02-19
 

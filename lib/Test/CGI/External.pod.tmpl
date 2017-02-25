@@ -97,7 +97,7 @@ tested with this module before being uploaded, it will be much easier
 to find the error. Another typical mistake is forgetting to make the
 CGI program executable; again, this results in a
 difficult-to-understand server error. This module nips these sorts of
-problem in the bud by checking for careless mistakes before the
+problems in the bud by checking for careless mistakes before the
 uploading.
 
 Test::CGI::External is TAP (Test Anything Protocol)-compliant and
@@ -258,7 +258,7 @@ assumed for a document response.
 =back
 
 Thus this test is not part of the tests done by L</run>. It is only
-necessary for the case when your status is not 200. See the
+necessary for when you expect the status to not be 200. See the
 L</Specification for HTTP headers> and related documents for a list of
 valid HTTP statuses.
 
@@ -958,5 +958,7 @@ even when the body is empty.
 
 Version 0.19 added L</test_not_implemented> and
 L</test_method_not_allowed>.
+
+Version 0.21 added L</test_status>.
 
 [% INCLUDE "author" %]

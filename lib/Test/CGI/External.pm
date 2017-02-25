@@ -696,11 +696,18 @@ sub test_method_not_allowed
     $tb->like ($headers->{status}, qr/405/, "Got method not allowed status");
     $self->clear_env ();
     my @allow = split /,\s*/, $headers->{allow};
+    my $saved_no_warn = $self->{no_warn};
+    $self->{no_warn} = 1;
     for my $ok_method (@allow) {
 	# Run the program with each of the headers we were told were
 	# allowed, and see whether the program executes correctly.
 	my %op2;
 	$op2{REQUEST_METHOD} = $ok_method;
+	if ($ok_method eq 'POST') {
+	    $op2{CONTENT_TYPE} = 'application/x-www-form-urlencoded';
+	    $op2{input} = 'a=b';
+#	    $op2{CONTENT_LENGTH} = length ($op2{input});
+	}
 	$self->{run_options} = \%op2;
 	run_private ($self);
 	$self->check_headers_private ();
@@ -711,6 +718,7 @@ sub test_method_not_allowed
 		 "Method $ok_method specified by Allow: header was allowed");
 	$self->clear_env ();
     }
+    $self->{no_warn} = $saved_no_warn;
     $self->{no_check_content} = $saved_no_check_content;
 }
 
