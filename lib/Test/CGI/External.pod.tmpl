@@ -76,9 +76,9 @@ debugging messages on standard output);
 =back
 
 Test::CGI::External tests for mistakes such as forgetting to install
-the program, forgetting to make it executable, leaving print
-statements before the headers are printed, exiting without printing
-output, or printing useless error messages during running.
+the program, forgetting to make it executable, executing print
+statements before the headers are printed, exiting without any
+printing output, or printing useless error messages during running.
 
 Test::CGI::External runs CGI programs as stand-alone programs, under a
 faked CGI-like environment created by manipulating environment
@@ -101,7 +101,7 @@ problems in the bud by checking for careless mistakes before the
 uploading.
 
 Test::CGI::External is TAP (Test Anything Protocol)-compliant and
-should work with Perl testing modules like L<Test::More>.
+works with the standard Perl testing modules like L<Test::More>.
 
 =head1 METHODS
 
@@ -117,8 +117,8 @@ Create a new testing object.
 
 Print the TAP (Test Anything Protocol) plan. This has to be done at
 the end of the execution. As shown in L</SYNOPSIS>, you usually don't
-have to print this but can use "done_testing" from L<Test::More>,
-since this module uses the L<Test::Builder> singleton internally.
+have to print this but can use L<Test::More/done_testing>, since this
+module uses the L<Test::Builder> singleton internally.
 
 =head2 run
 
@@ -131,19 +131,19 @@ L</Outputs> for outputs. Here is an example:
 
 [% example("rupert") %]
 
-You can also use run without an argument to do basic tests,
-but it will print warnings. Use L</set_no_warnings> to stop it
+You can also use run without an argument to do basic tests, but this
+module will print warnings. Use L</set_no_warnings> to stop it
 printing these.
 
 =head2 set_cgi_executable
 
     $tester->set_cgi_executable ('my.cgi');
 
-Set the CGI program to be tested to F<my.cgi>. This checks whether the
-file exists and is executable, and prints a warning if either of these
-checks fails. It's also possible to send command-line options to the
-program. Arguments after the name of the executable are sent as
-command-line options to the CGI program:
+Set the CGI program to be tested to F<my.cgi>. This runs tests which
+check whether the file exists and is executable. 
+
+To send command-line options to the program, give arguments after the
+name of the executable:
 
     $tester->set_cgi_executable ('my.cgi', '-o', 'xyz');
 
@@ -167,7 +167,7 @@ receives an unsupported REQUEST_METHOD.
 =back
 
 If you need to, you can supply your own request method as the first
-argument to the script:
+argument:
 
     $tester->test_not_implemented ('SUFFER');
 
@@ -212,15 +212,17 @@ methods for the requested resource.
 
 This test further checks the validity of the allow header by making
 requests for each of the request methods it defines. For example, if
-your allow header contains C<GET> and C<POST>, this makes empty GET
-and POST requests to your script to see whether it handles them or
-not.
+your allow header contains C<GET> and C<POST>, this makes GET and POST
+requests to your script to see whether it handles them or not. If a
+POST request is made, a very simple request with the content type set
+to C<application/x-www-form-urlencoded> and the content C<a=b> is
+made.
 
 If you need to check how your script responds to completely unexpected
 request methods, use L</test_not_implemented> rather than this method.
 
-All the script outputs and headers are discarded after this method has
-completed.
+All the CGI script outputs, including headers, are discarded after
+this method has completed.
 
 For example, given this script:
 
@@ -259,8 +261,9 @@ assumed for a document response.
 
 Thus this test is not part of the tests done by L</run>. It is only
 necessary for when you expect the status to not be 200. See the
-L</Specification for HTTP headers> and related documents for a list of
-valid HTTP statuses.
+L</Specification for HTTP headers> and related documents, or the Perl
+module L<HTTP::Status> (part of the L<HTTP::Message> distribution),
+for a list of valid HTTP statuses.
 
 [% since(0.21) %]
 
@@ -383,11 +386,13 @@ C<%options>.
 
 =item CONTENT_TYPE
 
-     $options{CONTENT_TYPE} = 'GET';
+     $options{REQUEST_METHOD} = 'POST';
+     $options{CONTENT_TYPE} = 'application/x-www-form-urlencoded';
      $test->run (\%options);
 
-The content type of the input. This is used when REQUEST_METHOD is
-POST. It is usually either C<application/x-www-form-urlencoded> or
+The content type of the input. This is necessary when
+L</REQUEST_METHOD> is POST. It is usually either
+C<application/x-www-form-urlencoded> or
 C<multipart/form-data>. C<application/x-www-form-urlencoded> is the
 default value for CGI form queries.
 
@@ -419,7 +424,10 @@ L</expect_errors> in that it does not invert the test, but skips it.
      $test->run (\%options);
 
 If set to a true value, validate the html using a validator you have
-set up with L</set_html_validator>.
+set up with L</set_html_validator>. It will also print a warning
+message if the mime type has not been set to C<text/html> with
+L</expect_mime_type>. The C<html> option is incompatible with the
+L</json> and L</png> options.
 
 =item HTTP_COOKIE
 
@@ -444,8 +452,11 @@ length of this variable. See also L</content_length>.
      $options{json} = 1;
      $test->run (\%options);
 
-Validate the body of the output as JSON using L<JSON::Parse>. This is
-run after decompression.
+Validate the body of the output as JSON using L<JSON::Parse>. The
+validation is run after decompression. It will also print a warning
+message if the mime type has not been set to C<application/json> or
+C<text/plain> with L</expect_mime_type>. The C<json> option is
+incompatible with the L</html> and L</png> options.
 
 =item no_check_content
 
@@ -485,6 +496,10 @@ produces a PNG output.
 
 [% example("png-test") %]
 
+It will also print a warning message if the mime type has not been set
+to C<image/png> with L</expect_mime_type>. The C<png> option is
+incompatible with the L</html> and L</json> options.
+
 =item QUERY_STRING
 
      $options{QUERY_STRING} = "word=babies";
@@ -492,7 +507,22 @@ produces a PNG output.
 
 This option sets the environment variable C<QUERY_STRING> to whatever
 its value is. The environment variable is then unset at the end of the
-test run.
+test run. If you do not set this, the environment variable
+QUERY_STRING is set to an empty string, as required by the CGI
+specification. From L<RFC 3875|/Specification of the Common Gateway
+Interface>, section 4.1.7. QUERY_STRING:
+
+=over
+
+The server MUST set this variable; if the Script-URI does not include
+a query component, the QUERY_STRING MUST be defined as an empty
+string ("").
+
+=back
+
+This behaviour was changed in version 0.22; prior to that,
+QUERY_STRING was not set in the environment if the user had not set
+it.
 
 =item REMOTE_ADDR
 
@@ -960,5 +990,7 @@ Version 0.19 added L</test_not_implemented> and
 L</test_method_not_allowed>.
 
 Version 0.21 added L</test_status>.
+
+Version 0.22 changed to always set L</QUERY_STRING>.
 
 [% INCLUDE "author" %]

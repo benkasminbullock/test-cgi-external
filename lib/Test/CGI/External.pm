@@ -324,6 +324,7 @@ sub run_private
     }
     else {
 	$self->note ("There is no query string.");
+        setenv_private ($self, 'QUERY_STRING', "");
     }
 
     my $request_method;
@@ -789,7 +790,7 @@ sub run
 	    }
 	}
 	else {
-	    carp "There is no expected mime type, I suggest text/plain or application/json for JSON output";
+	    carp "There is no expected mime type, use expect_mime_type ('application/json') or expect_mime_type ('text/plain') for JSON output";
 	}
     }
     elsif ($options->{png} && ! $self->{no_warn}) {
