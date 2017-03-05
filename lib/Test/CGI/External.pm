@@ -10,7 +10,7 @@ use File::Temp 'tempfile';
 use FindBin '$Bin';
 use Test::Builder;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 sub new
 {
@@ -354,10 +354,15 @@ sub run_private
 	if (utf8::is_utf8 ($self->{input})) {
 	    $self->{input} = $self->encode_utf8_safe ();
 	}
-        my $content_length = length ($self->{input});
-        setenv_private ($self, 'CONTENT_LENGTH', $content_length);
-	$self->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.");
-	$options->{content_length} = $content_length;
+	if ($self->{bad_content_length}) {
+	    setenv_private ($self, 'CONTENT_LENGTH', '0');
+	}
+	else {
+	    my $content_length = length ($self->{input});
+	    setenv_private ($self, 'CONTENT_LENGTH', $content_length);
+	    $self->note ("I am setting the CGI program's standard input to a string of length $content_length taken from the input options.");
+	    $options->{content_length} = $content_length;
+	}
     }
 
     if ($comp_test) {
@@ -695,44 +700,86 @@ sub test_method_not_allowed
     my $headers = $options{headers};
     $tb->ok ($headers->{allow}, "Got Allow header");
     $tb->like ($headers->{status}, qr/405/, "Got method not allowed status");
-    $self->clear_env ();
-    my @allow = split /,\s*/, $headers->{allow};
-    my $saved_no_warn = $self->{no_warn};
-    $self->{no_warn} = 1;
-    for my $ok_method (@allow) {
-	# Run the program with each of the headers we were told were
-	# allowed, and see whether the program executes correctly.
-	my %op2;
-	$op2{REQUEST_METHOD} = $ok_method;
-	if ($ok_method eq 'POST') {
-	    $op2{CONTENT_TYPE} = 'application/x-www-form-urlencoded';
-	    $op2{input} = 'a=b';
-#	    $op2{CONTENT_LENGTH} = length ($op2{input});
-	}
-	$self->{run_options} = \%op2;
-	run_private ($self);
-	$self->check_headers_private ();
-	my $headers2 = $op2{headers};
-	# Check that either there is no status line (defaults to 200),
-	# or that there is a status line, and it has status 200.
-	$tb->ok (! $headers2->{status} || $headers2->{status} =~ /200/,
-		 "Method $ok_method specified by Allow: header was allowed");
+    if ($headers->{allow}) {
 	$self->clear_env ();
+	my @allow = split /,\s*/, $headers->{allow};
+	my $saved_no_warn = $self->{no_warn};
+	$self->{no_warn} = 1;
+	for my $ok_method (@allow) {
+	    # Run the program with each of the headers we were told were
+	    # allowed, and see whether the program executes correctly.
+	    my %op2;
+	    $op2{REQUEST_METHOD} = $ok_method;
+	    if ($ok_method eq 'POST') {
+		$op2{CONTENT_TYPE} = 'application/x-www-form-urlencoded';
+		$op2{input} = 'a=b';
+		#	    $op2{CONTENT_LENGTH} = length ($op2{input});
+	    }
+	    $self->{run_options} = \%op2;
+	    run_private ($self);
+	    $self->check_headers_private ();
+	    my $headers2 = $op2{headers};
+	    # Check that either there is no status line (defaults to 200),
+	    # or that there is a status line, and it has status 200.
+	    $tb->ok (! $headers2->{status} || $headers2->{status} =~ /200/,
+		     "Method $ok_method specified by Allow: header was allowed");
+	    $self->clear_env ();
+	}
+	$self->{no_warn} = $saved_no_warn;
     }
-    $self->{no_warn} = $saved_no_warn;
     $self->{no_check_content} = $saved_no_check_content;
+}
+
+# Make a request with CONTENT_LENGTH set to zero and see if the
+# executable produces a 411 status (content length required).
+
+sub test_411
+{
+    my ($self, $options) = @_;
+    if (! $options) {
+	$options = {};
+    }
+    $self->{bad_content_length} = 1;
+    my $rm;
+    if ($options->{REQUEST_METHOD} && $options->{REQUEST_METHOD} ne 'POST') {
+	$rm = $options->{REQUEST_METHOD};
+	if (! $self->{no_warn}) {
+	    carp "test_411 requires REQUEST_METHOD to be POST";
+	}
+    }
+    $options->{REQUEST_METHOD} = 'POST';
+    if (! $options->{CONTENT_TYPE}) {
+	$options->{CONTENT_TYPE} = 'application/x-www-form-urlencoded';
+    }
+    if (! $options->{input}) {
+	$options->{input} = 'this does not have a zero length';
+    }
+    my $saved_no_check_content = $self->{no_check_content};
+    $self->{no_check_content} = 1;
+    $self->{run_options} = $options;
+    $self->run_private ();
+    # This has to be run to parse the headers.
+    $self->check_headers_private ();
+    $self->test_status (411);
+    # Delete everything from $self so that it can be used again.
+    $self->{bad_content_length} = undef;
+    $self->{run_options} = undef;
+    $self->clear_env ();
+    $self->{no_check_content} = $saved_no_check_content;
+    # Put the user's %options back to how it was.
+    $options->{REQUEST_METHOD} = $rm;
 }
 
 # Send bullshit queries expecting a 400 response.
 
 sub test_broken_queries
 {
-    my ($tester, $options, $queries) = @_;
+    my ($self, $options, $queries) = @_;
     for my $query (@$queries) {
 	$ENV{QUERY_STRING} = $query;
-	$tester->run ($options);
+	$self->run ($options);
 	# test for 400 header
-	$tester->test_status (400);
+	$self->test_status (400);
     }
 }
 

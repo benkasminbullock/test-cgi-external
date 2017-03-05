@@ -267,6 +267,35 @@ for a list of valid HTTP statuses.
 
 [% since(0.21) %]
 
+=head2 test_411
+
+    $tester->test_411 ();
+
+Test whether your CGI program responds to a POST request with a
+CONTENT_LENGTH of zero with a C<411 Length Required> header.
+
+Since this response is not compulsory, and not every program needs to
+respond to POST requests, this test is optional. From B<4.4 Message
+Length> of L<RFC 2616|/Specification for HTTP headers>:
+
+=over
+
+If a request contains a message-body and a Content-Length is not
+given, the server SHOULD respond with 400 (bad request) if it cannot
+determine the length of the message, or with 411 (length required) if
+it wishes to insist on receiving a valid Content-Length.
+
+=back
+
+It's possible to send your own message, as in
+
+    $tester->test_411 (\%options);
+
+You need to set L</REQUEST_METHOD> to C<POST>. The output is not
+checked for a correct Content-Type: header.
+
+[% since(0.22) %] See also L<this discussion|https://groups.google.com/forum/#!topic/sljfaqorg/HqhWjPg25lU> for motivation.
+
 =head1 TEST OPTION METHODS
 
 These methods control test options.
@@ -991,6 +1020,7 @@ L</test_method_not_allowed>.
 
 Version 0.21 added L</test_status>.
 
-Version 0.22 changed to always set L</QUERY_STRING>.
+Version 0.22 changed to always set L</QUERY_STRING> and introduced
+L</test_411>.
 
 [% INCLUDE "author" %]
