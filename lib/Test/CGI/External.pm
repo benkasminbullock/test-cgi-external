@@ -700,8 +700,8 @@ sub test_method_not_allowed
     my $headers = $options{headers};
     $tb->ok ($headers->{allow}, "Got Allow header");
     $tb->like ($headers->{status}, qr/405/, "Got method not allowed status");
+    $self->clear_env ();
     if ($headers->{allow}) {
-	$self->clear_env ();
 	my @allow = split /,\s*/, $headers->{allow};
 	my $saved_no_warn = $self->{no_warn};
 	$self->{no_warn} = 1;
