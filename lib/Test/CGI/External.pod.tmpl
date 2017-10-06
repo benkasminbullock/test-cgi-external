@@ -296,6 +296,19 @@ checked for a correct Content-Type: header.
 
 [% since(0.22) %] See also L<this discussion|https://groups.google.com/forum/#!topic/sljfaqorg/HqhWjPg25lU> for motivation.
 
+=head2 test_options
+
+    $tester->test_options ();
+
+Test the response of the CGI executable to an OPTIONS request. See
+section 9.2 of L<RFC 2616|/Specification for HTTP headers>. This
+method does not take any arguments. It tests that the CGI executable
+correctly produces an C<Allow:> header containing the allowed
+methods. It does not test whether or not the allowed methods returned
+are valid. There is no return value.
+
+[% since(0.23) %]
+
 =head1 TEST OPTION METHODS
 
 These methods control test options.

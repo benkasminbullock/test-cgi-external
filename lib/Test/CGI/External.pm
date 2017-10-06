@@ -967,6 +967,11 @@ sub run3
 	close $in or die $!;
 	$cmd .= " < " . $self->{infile};
     }
+    else {
+	# Make sure that the program does not hang waiting for STDIN
+	# to complete.
+	$cmd .= " < /dev/null ";
+    }
     my $out;
     ($out, $self->{outfile}) = tempfile ("/tmp/output-XXXXXX");
     close $out or die $!;
