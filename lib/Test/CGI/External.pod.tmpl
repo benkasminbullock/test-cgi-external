@@ -115,6 +115,8 @@ Create a new testing object.
 
 =head2 plan
 
+    $tester->plan ();
+
 Print the TAP (Test Anything Protocol) plan. This has to be done at
 the end of the execution. As shown in L</SYNOPSIS>, you usually don't
 have to print this but can use L<Test::More/done_testing>, since this
@@ -1006,6 +1008,9 @@ CGI program for you and returns its output for you to test yourself.
 
 =head1 HISTORY
 
+See also the file Changes in the distribution for the dates of the
+following changes.
+
 This module started out as a test program for a CGI program written in
 C. Originally, it didn't use the Perl Test::More-style framework, but
 counted its pass and fail tests itself. I released the module to CPAN
@@ -1039,5 +1044,8 @@ Version 0.21 added L</test_status>.
 
 Version 0.22 changed to always set L</QUERY_STRING> and introduced
 L</test_411>.
+
+Version 0.23 plugged a loophole for programs reading from standard
+input and added the L</test_options> method.
 
 [% INCLUDE "author" %]
