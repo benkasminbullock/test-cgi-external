@@ -171,7 +171,7 @@ sub test_if_modified_since
     $self->check_headers_private ($self);
     $self->test_status (304);
     my $body = $run_options{body};
-    $self->do_test (! defined ($body) || length ($body) == 0,
+    $self->do_test (! defined ($body) || length ($body) <= 10,
 		    "No body returned with 304 response");
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.
@@ -629,11 +629,14 @@ sub check_compression_private
             print "# Saved failed output to $failedfile.\n";
         }
         else {
-            my $uncomp_size = length $uncompressed;
-            my $percent_comp = sprintf ("%.1f%%", (100 * length ($body)) / $uncomp_size);
-            $self->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'. The uncompressed size is $uncomp_size. The compressed output is $percent_comp of the uncompressed size.");
+	    $self->{tb}->ok (defined $uncompressed, "Uncompression succeeded");
+	    if (defined $uncompressed) {
+		my $uncomp_size = length $uncompressed;
+		my $percent_comp = sprintf ("%.1f%%", (100 * length ($body)) / $uncomp_size);
+		$self->pass_test ("The body of the CGI output was able to be decompressed using 'gunzip'. The uncompressed size is $uncomp_size. The compressed output is $percent_comp of the uncompressed size.");
             
-            $self->{run_options}->{body} = $uncompressed;
+		$self->{run_options}->{body} = $uncompressed;
+	    }
         }
     }
     if ($verbose) {
@@ -959,6 +962,15 @@ sub tfilename
 sub run3
 {
     my ($self, $exe) = @_;
+    if ($self->{dump_env}) {
+	for my $k (sort keys %ENV) {
+	    my $v = $ENV{$k};
+	    if (! defined $v) {
+		$v = '';
+	    }
+	    $self->note ("$k='$v'");
+	}
+    }
     my $cmd = "@$exe";
     if (defined $self->{input}) {
 	$self->{infile} = tfilename ();
