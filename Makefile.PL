@@ -78,8 +78,7 @@ WriteMakefile1(
 	# compatible.
 	'Encode' => 0,
 	'Test::Builder' => 0,
-	'Test::Tester' => '0.109',
-        'Test::More' => 0,
+	'File::Temp' => 0,
     },
 );
 
