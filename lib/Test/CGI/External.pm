@@ -459,12 +459,11 @@ my $http_token = qr/(?:$HTTP_TOKEN+)/;
 
 sub check_content_line_private
 {
-    my ($self, $header, $verbose) = @_;
+    my ($self, $header) = @_;
 
     my $expected_charset = $self->{expected_charset};
 
     $self->note ("I am checking to see if the output contains a valid content type line.");
-    my $content_type_ok;
     my $has_content_type = ($header =~ m!(Content-Type:\s*.*)!i);
     my $content_type_line = $1;
     $self->do_test ($has_content_type, "There is a Content-Type header");
@@ -1047,8 +1046,11 @@ sub validate_html
     open my $htmltovalidate, ">:encoding(utf8)", $html_temp_file or die $!;
     print $htmltovalidate $self->{run_options}->{body};
     close $htmltovalidate or die $!;
-    my $status = system ("$html_validator $html_temp_file > $html_validate");
-    
+    my $command = "$html_validator $html_temp_file > $html_validate";
+    my $status = system ($command);
+    if (! $status) {
+	print "$command failed.\n";
+    }
     $self->do_test (! -s $html_validate, "HTML is valid");
     if (-s $html_validate) {
 	open my $in, "<", $html_validate or die $!;
