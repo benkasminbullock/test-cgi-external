@@ -149,7 +149,7 @@ sub set_no_warnings
 sub test_if_modified_since
 {
     my ($self, $last_modified) = @_;
-    die unless defined $last_modified;
+    croak "Need defined \$last_modified" unless defined $last_modified;
     my $saved = $ENV{HTTP_IF_MODIFIED_SINCE};
     $ENV{HTTP_IF_MODIFIED_SINCE} = $last_modified;
     $self->note ("Testing response with last modified time $last_modified");
@@ -171,8 +171,11 @@ sub test_if_modified_since
     $self->check_headers_private ($self);
     $self->test_status (304);
     my $body = $run_options{body};
-    $self->do_test (! defined ($body) || length ($body) <= 10,
-		    "No body returned with 304 response");
+    my $nobody = (! defined ($body) || length ($body) <= 10);
+    $self->do_test ($nobody, "No body returned with 304 response");
+    if (! $nobody) {
+	$self->diag ("Body is $body");
+    }
     $ENV{HTTP_IF_MODIFIED_SINCE} = $saved;
     # Restore our precious stuff.
     $self->{run_options} = $saved_run_options;
